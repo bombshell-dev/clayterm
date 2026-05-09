@@ -212,16 +212,11 @@ process.stdin.on("data", (buf) => {
 
 ## Development
 
-Requires `clang` with wasm32 target support.
+For local source builds, toolchain setup, and `clay` submodule instructions, see [BUILD.md](BUILD.md).
 
-First build the `.wasm`
+Quick local validation:
 
 ```sh
 make
-```
-
-run tests
-
-```sh
 deno task test
 ```
