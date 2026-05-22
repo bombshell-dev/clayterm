@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-fallthrough
 import type { InputEvent, KeyEvent, Op, PointerEvent } from "../mod.ts";
 import type { SizingAxis } from "../ops.ts";
 import type { Setting } from "../settings.ts";
@@ -442,7 +443,9 @@ export function createKeyboardDemo(api: KeyboardDemoApi) {
     let mouseLabel = context["Capture mouse events"] ? "capture" : "system";
 
     ops.push(
-      open("badges", { layout: { direction: "ttb", gap: 1, padding: { top: 1 } } }),
+      open("badges", {
+        layout: { direction: "ttb", gap: 1, padding: { top: 1 } },
+      }),
       open("badge:mode", {
         layout: { direction: "ltr", height: fixed(1), padding: { bottom: 1 } },
       }),
@@ -472,7 +475,9 @@ export function createKeyboardDemo(api: KeyboardDemoApi) {
       close(),
     );
 
-    ops.push(open("", { layout: { width: grow(), direction: "ltr", alignX: 1 } }));
+    ops.push(
+      open("", { layout: { width: grow(), direction: "ltr", alignX: 1 } }),
+    );
     configPanel(ops, context);
     ops.push(close());
     ops.push(close());
@@ -495,11 +500,16 @@ export function createKeyboardDemo(api: KeyboardDemoApi) {
     ops.push(close());
     ops.push(close());
 
-    ops.push(open("event-log", { layout: { height: fixed(1), padding: { top: 1 } } }));
     ops.push(
-      text(context.logged ? JSON.stringify(context.logged) : "Press any key...", {
-        color: highlight,
-      }),
+      open("event-log", { layout: { height: fixed(1), padding: { top: 1 } } }),
+    );
+    ops.push(
+      text(
+        context.logged ? JSON.stringify(context.logged) : "Press any key...",
+        {
+          color: highlight,
+        },
+      ),
     );
     ops.push(close());
     ops.push(close());
@@ -550,7 +560,11 @@ export function createKeyboardDemo(api: KeyboardDemoApi) {
     };
   }
 
-  function* recognizer(): Iterator<AppContext, never, InputEvent | PointerEvent> {
+  function* recognizer(): Iterator<
+    AppContext,
+    never,
+    InputEvent | PointerEvent
+  > {
     let current = createInitialContext();
     let event = yield current;
     let mode = inputmode({ ...current, event });
@@ -597,7 +611,9 @@ export function createKeyboardDemo(api: KeyboardDemoApi) {
       }
       if (event.type === "keydown") {
         let keyEvent = event as KeyEvent;
-        let entry = logEntries.find((candidate) => candidate.key === keyEvent.key);
+        let entry = logEntries.find((candidate) =>
+          candidate.key === keyEvent.key
+        );
         if (entry) {
           context = {
             ...context,

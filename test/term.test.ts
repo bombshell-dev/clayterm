@@ -130,11 +130,6 @@ describe("term", () => {
 │                  │
 │                  │
 └──────────────────┘`.trim());
-
-      if (Deno.build.os === "windows") {
-        expect(out.startsWith("\x1b[?7l")).toBe(true);
-        expect(out.endsWith("\x1b[?7h")).toBe(true);
-      }
     });
 
     it("primes front buffer for subsequent diff render", async () => {
@@ -152,13 +147,7 @@ describe("term", () => {
 │                  │
 └──────────────────┘`.trim());
 
-      if (Deno.build.os === "windows") {
-        expect(second.startsWith("\x1b[?7l\x1b[H")).toBe(true);
-        expect(second).toContain("\r\n");
-        expect(second.endsWith("\x1b[?7h")).toBe(true);
-      } else {
-        expect(second.length).toBeLessThan(first.length);
-      }
+      expect(second.length).toBeLessThan(first.length);
     });
   });
 

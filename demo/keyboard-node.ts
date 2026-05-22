@@ -31,31 +31,19 @@ type NodeScanResult = {
   pending?: { delay: number };
 };
 
-let demo = createKeyboardDemo({
-  close,
-  fixed,
-  grow,
-  mouseTracking,
-  open,
-  progressiveInput,
-  rgba,
-  settings,
-  text,
-} as Parameters<typeof createKeyboardDemo>[0]);
-
-let diagnostics = {
-  disableWindowsFullscreenHandling: process.argv.includes(
-    "--no-windows-fullscreen-fix",
-  ),
-};
-
-(globalThis as typeof globalThis & {
-  __claytermDiagnostics__?: {
-    disableWindowsFullscreenHandling?: boolean;
-  };
-}).__claytermDiagnostics__ = {
-  disableWindowsFullscreenHandling: diagnostics.disableWindowsFullscreenHandling,
-};
+let demo = createKeyboardDemo(
+  {
+    close,
+    fixed,
+    grow,
+    mouseTracking,
+    open,
+    progressiveInput,
+    rgba,
+    settings,
+    text,
+  } as Parameters<typeof createKeyboardDemo>[0],
+);
 
 let term: Awaited<ReturnType<typeof createTerm>> | null = null;
 let input: NodeInput | null = null;

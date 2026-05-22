@@ -38,71 +38,6 @@ export interface ElementInfo {
   bounds: BoundingBox;
 }
 
-const WINDOWS_WRAP_DISABLE = new Uint8Array([0x1b, 0x5b, 0x3f, 0x37, 0x6c]);
-const WINDOWS_WRAP_ENABLE = new Uint8Array([0x1b, 0x5b, 0x3f, 0x37, 0x68]);
-
-function windowsFullscreenHandlingDisabled(): boolean {
-  let diagnostics = (globalThis as typeof globalThis & {
-    __claytermDiagnostics__?: {
-      disableWindowsFullscreenHandling?: boolean;
-    };
-  }).__claytermDiagnostics__;
-
-  return diagnostics?.disableWindowsFullscreenHandling === true;
-}
-
-function normalizeWindowsLineOutput(output: Uint8Array): Uint8Array {
-  // Empirically, Deno-on-Windows fullscreen redraws were more reliable when
-  // line-mode output began with a home cursor move and used CRLF row
-  // separators. Bare LF left later rows visually clipped in the tested
-  // terminal stack, while localized redraws could still reveal the content.
-  let extra = 0;
-  for (let i = 0; i < output.length; i++) {
-    if (output[i] === 0x0a && (i === 0 || output[i - 1] !== 0x0d)) {
-      extra++;
-    }
-  }
-
-  let prefix = new Uint8Array([
-    ...WINDOWS_WRAP_DISABLE,
-    0x1b,
-    0x5b,
-    0x48,
-  ]);
-  let suffix = WINDOWS_WRAP_ENABLE;
-  let normalized = new Uint8Array(
-    prefix.length + output.length + extra + suffix.length,
-  );
-  normalized.set(prefix, 0);
-
-  let offset = prefix.length;
-  for (let i = 0; i < output.length; i++) {
-    let byte = output[i];
-    if (byte === 0x0a && (i === 0 || output[i - 1] !== 0x0d)) {
-      normalized[offset++] = 0x0d;
-    }
-    normalized[offset++] = byte;
-  }
-
-  normalized.set(suffix, offset);
-
-  return normalized as Uint8Array;
-}
-
-function wrapWindowsFullscreenOutput(output: Uint8Array): Uint8Array {
-  // Preserve an explicit wrap-state boundary around fullscreen frames on
-  // Windows. In the tested Deno path this avoided redraw glitches at the right
-  // edge even though the same scene rendered cleanly in Node.
-  // xterm defines CSI ? 7 h / CSI ? 7 l as auto-wrap on/off.
-  let wrapped = new Uint8Array(
-    WINDOWS_WRAP_DISABLE.length + output.length + WINDOWS_WRAP_ENABLE.length,
-  );
-  wrapped.set(WINDOWS_WRAP_DISABLE, 0);
-  wrapped.set(output, WINDOWS_WRAP_DISABLE.length);
-  wrapped.set(WINDOWS_WRAP_ENABLE, WINDOWS_WRAP_DISABLE.length + output.length);
-  return wrapped;
-}
-
 const ERROR_TYPES = [
   "TEXT_MEASUREMENT_FUNCTION_NOT_PROVIDED",
   "ARENA_CAPACITY_EXCEEDED",
@@ -135,10 +70,6 @@ export interface Term {
   render(ops: Op[], options?: RenderOptions): RenderResult;
 }
 
-let runtimeIsWindows = (globalThis as typeof globalThis & {
-  Deno?: { build?: { os?: string } };
-}).Deno?.build?.os === "windows";
-
 export async function createTerm(options: TermOptions): Promise<Term> {
   let { width, height } = options;
   let native = await createTermNative(width, height);
@@ -153,18 +84,6 @@ export async function createTerm(options: TermOptions): Promise<Term> {
       let len = pack(ops, memory.buffer, opsBuf, memory.buffer.byteLength);
       let mode = options?.mode === "line" ? 1 : 0;
       let row = options?.row ?? 1;
-      let autoLineMode = false;
-      let windowsFullscreen = row === 1 && runtimeIsWindows &&
-        !windowsFullscreenHandlingDisabled();
-
-      // Use the line-oriented render path by default for Windows fullscreen
-      // renders. This was required for Deno to avoid
-      // clipped rows during fullscreen redraw, while the equivalent Node path
-      // did not show the same failure.
-      if (mode === 0 && options?.mode === undefined && windowsFullscreen) {
-        mode = 1;
-        autoLineMode = true;
-      }
 
       native.reduce(statePtr, opsBuf, len, mode, row);
 
@@ -178,12 +97,6 @@ export async function createTerm(options: TermOptions): Promise<Term> {
         native.output(statePtr),
         native.length(statePtr),
       );
-
-      if (autoLineMode) {
-        output = normalizeWindowsLineOutput(output);
-      } else if (windowsFullscreen) {
-        output = wrapWindowsFullscreenOutput(output);
-      }
 
       let current = new Set(
         options?.pointer ? native.getPointerOverIds() : [],

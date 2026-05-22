@@ -8,14 +8,8 @@ import {
   type Stream,
   until,
 } from "effection";
-import {
-  createTerm,
-  type PointerEvent,
-} from "../mod.ts";
-import {
-  alternateBuffer,
-  settings,
-} from "../settings.ts";
+import { createTerm, type PointerEvent } from "../mod.ts";
+import { alternateBuffer, settings } from "../settings.ts";
 import { close, fixed, grow, open, rgba, text } from "../mod.ts";
 import { cursor, mouseTracking, progressiveInput } from "../settings.ts";
 import { createKeyboardDemo } from "./keyboard-shared.ts";
@@ -33,20 +27,6 @@ const demo = createKeyboardDemo({
   settings,
   text,
 });
-
-let diagnostics = {
-  disableWindowsFullscreenHandling: Deno.args.includes(
-    "--no-windows-fullscreen-fix",
-  ),
-};
-
-(globalThis as typeof globalThis & {
-  __claytermDiagnostics__?: {
-    disableWindowsFullscreenHandling?: boolean;
-  };
-}).__claytermDiagnostics__ = {
-  disableWindowsFullscreenHandling: diagnostics.disableWindowsFullscreenHandling,
-};
 
 function writeAllSync(output: Uint8Array): void {
   // Deno's stdout writes are not guaranteed to drain the full buffer in one
