@@ -1,5 +1,7 @@
 /.agent-shell/
-/clayterm.wasm
-/wasm.ts
+/clayterm-layout.wasm
+/clayterm-input.wasm
+/wasm-layout.ts
+/wasm-input.ts
 /build/
 /node_modules/

@@ -21,11 +21,13 @@
   },
   "exports": {
     ".": "./mod.ts",
+    "./layout": "./layout.ts",
+    "./input": "./input.ts",
     "./validate": "./validate.ts"
   },
   "publish": {
     "include": ["*.ts"],
-    "exclude": ["!wasm.ts"]
+    "exclude": ["!wasm-layout.ts", "!wasm-input.ts"]
   },
   "nodeModulesDir": "auto",
   "fmt": {
