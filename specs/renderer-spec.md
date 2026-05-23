@@ -25,6 +25,9 @@ pointer event model and certain wrapper types — those are described in Section
 Input parsing is specified separately in the
 [Clayterm Input Specification](input-spec.md).
 
+Transitions are specified separately in the
+[Clayterm Transitions Specification](transitions-spec.md).
+
 ---
 
 ## 2. Scope
@@ -353,6 +356,26 @@ Line mode is intended for inline region rendering where the caller manages
 cursor positioning externally and the output must work in pipes or non-alternate
 screen contexts.
 
+#### 8.2.3 Input event
+
+The optional `event` field on `RenderOptions` accepts a single `InputEvent` from
+the input parser. The renderer extracts relevant state from the event:
+
+- **Mouse events** (`mousedown`, `mouseup`, `mousemove`) — update pointer
+  position and button state for hit testing and pointer event generation.
+- **Wheel events** (`wheel`) — apply scroll deltas to pointer-driven scroll
+  containers. See the [Scroll Specification](scroll-spec.md).
+- **Other event types** — ignored by the renderer.
+
+A render transaction accepts at most one input event. When multiple events are
+available from a single `input.scan()` call, the caller SHOULD render once per
+event. The diff engine ensures frames with no visual change emit zero bytes,
+making per-event rendering efficient.
+
+This field deprecates the `pointer` option on `RenderOptions`, which required
+the caller to manually decompose mouse events into `{ x, y, down }` state. See
+Section 12.4 for deprecation details.
+
 ### 8.3 Directive constructors
 
 Directives are created using constructor functions that return plain objects.
@@ -465,6 +488,13 @@ As part of the render transaction, the directive array is transferred into a
 form that the WASM module can process. This transfer is handled internally by
 the renderer and is not an operation the caller performs or observes. The
 transfer mechanism is an implementation detail described in Section 12.1.
+
+If a frame exceeds transfer-buffer capacity while packing string content, the
+renderer MUST throw a descriptive `RangeError` that identifies the condition as
+a transfer-buffer, frame-capacity, or packing overflow. The renderer MUST NOT
+expose only the raw host-level TypedArray message `"offset is out of bounds"`
+for this condition. The error message SHOULD direct callers to render a smaller
+visible slice or reduce frame content.
 
 ### 9.3 Directive identity
 
@@ -609,9 +639,57 @@ The `open()` constructor currently accepts the following property groups in its
 - **`cornerRadius`** — per-corner radius values, producing rounded box-drawing
   characters
 - **`clip`** — clip region configuration for scroll containers
-- **`floating`** — floating-element configuration (offset, parent reference,
-  attach points, z-index)
+- **`floating`** — floating-element configuration (offset, expansion, parent
+  reference, attach target, structured attach points, pointer capture mode, clip
+  target, z-index)
 - **`scroll`** — scroll container configuration
+
+The current floating surface is:
+
+```ts
+floating?: {
+  x?: number;
+  y?: number;
+  expand?: { width?: number; height?: number };
+  parent?: number;
+  attachTo?: "none" | "parent" | "element" | "root";
+  attachPoints?: {
+    element?:
+      | "left-top"
+      | "left-center"
+      | "left-bottom"
+      | "center-top"
+      | "center-center"
+      | "center-bottom"
+      | "right-top"
+      | "right-center"
+      | "right-bottom";
+    parent?:
+      | "left-top"
+      | "left-center"
+      | "left-bottom"
+      | "center-top"
+      | "center-center"
+      | "center-bottom"
+      | "right-top"
+      | "right-center"
+      | "right-bottom";
+  };
+  pointerCaptureMode?: "capture" | "passthrough";
+  clipTo?: "none" | "attached-parent";
+  zIndex?: number;
+}
+```
+
+The `floating` object configures Clay floating layout behavior. `x` and `y`
+provide the floating offset. `expand` expands the floating bounds. `parent`
+identifies the target element when `attachTo` is `"element"`. `attachTo` selects
+whether the element is attached to no target, its parent, an element, or the
+layout root. `attachPoints.element` describes the anchor on the floating
+element, and `attachPoints.parent` describes the anchor on the attached target.
+`pointerCaptureMode` controls whether the floating element captures pointer
+input or lets it pass through, `clipTo` controls inherited clipping, and
+`zIndex` controls floating order.
 
 The `text()` constructor currently accepts: `color`, `fontSize`,
 `letterSpacing`, `lineHeight`, and attribute flags (`bold`, `italic`,
@@ -653,6 +731,7 @@ interface RenderInfo {
 
 interface ElementInfo {
   bounds: BoundingBox;
+  scrollDelta: { x: number; y: number };
 }
 
 interface BoundingBox {
@@ -666,7 +745,10 @@ interface BoundingBox {
 Each `ElementInfo` provides post-layout metadata. The `bounds` field is the
 element's computed bounding box in character cells, as determined by the layout
 engine after the render transaction completes. `x` and `y` are zero-indexed from
-the top-left corner of the layout root.
+the top-left corner of the layout root. The `scrollDelta` field contains the
+scroll delta applied to this clip element by a wheel event during this frame
+(zero on both axes when no wheel event targeted the element). See the
+[Scroll Specification](scroll-spec.md), Section 4.
 
 Querying an element with an empty-string id or an id not present in the frame
 returns `undefined`.
@@ -698,14 +780,23 @@ Future versions may restructure the return type.
 ### 12.4 Pointer event model
 
 Clayterm currently supports pointer hit-testing via the underlying layout
-engine's element-identification mechanism. The caller passes pointer state
-(`{ x, y, down }`) as part of render options, and the renderer returns pointer
-events as part of the render result:
+engine's element-identification mechanism. The renderer returns pointer events
+as part of the render result:
 
 - `pointerenter` — the pointer has entered an element's bounding box
 - `pointerleave` — the pointer has left an element's bounding box
 - `pointerclick` — a pointer-up occurred over an element that was also under the
   pointer at pointer-down
+
+**Input event integration.** The preferred way to drive pointer state is via
+`RenderOptions.event`, which accepts a single `InputEvent` from the input
+parser. The renderer extracts pointer position and button state from mouse
+events internally. See the [Scroll Specification](scroll-spec.md), Section 5.
+
+**Deprecated: `pointer` option.** The `RenderOptions.pointer` field
+(`{ x, y, down }`) is deprecated. It required the caller to manually track
+pointer state from input events. Callers SHOULD migrate to
+`RenderOptions.event`. The `pointer` option will be removed in a future version.
 
 This surface is functional but should not be treated as stable contract. The
 calling convention was discovered through iteration, the event model has
@@ -764,9 +855,8 @@ junction glyphs in a post-render pass.
 _This section is non-normative. These topics are explicitly excluded from this
 specification. Their omission is intentional, not an oversight._
 
-**Scroll container API.** The underlying layout engine supports scroll
-containers. No TypeScript-side API exists for providing scroll state to the
-renderer.
+**Scroll container API.** Now specified in the
+[Scroll Specification](scroll-spec.md).
 
 **CSI helper for terminal setup.** A helper for generating paired apply/rollback
 byte arrays for terminal mode configuration was discussed but not implemented.

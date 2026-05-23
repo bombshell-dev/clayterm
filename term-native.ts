@@ -20,12 +20,22 @@ export interface Native {
   memory: WebAssembly.Memory;
   statePtr: number;
   opsBuf: number;
-  reduce(ct: number, buf: number, len: number, mode: number, row: number): void;
+  reduce(
+    ct: number,
+    buf: number,
+    len: number,
+    mode: number,
+    row: number,
+    deltaTime: number,
+  ): void;
   output(ct: number): number;
   length(ct: number): number;
   setPointer(x: number, y: number, down: boolean): void;
+  updateScrollContainers(dx: number, dy: number): void;
   getPointerOverIds(): string[];
   getElementBounds(id: string): BoundingBox | undefined;
+  animating(ct: number): number;
+  getScrollDelta(ct: number, id: string): { x: number; y: number };
   errorCount(ct: number): number;
   errorType(ct: number, index: number): number;
   errorMessage(ct: number, index: number): string;
@@ -75,14 +85,27 @@ export async function createTermNative(
       len: number,
       mode: number,
       row: number,
+      deltaTime: number,
     ): void;
     output(ct: number): number;
     length(ct: number): number;
     Clay_SetPointerState(vec: number, down: number): void;
+    Clay_UpdateScrollContainers(
+      drag: number,
+      vec: number,
+      dt: number,
+    ): void;
     pointer_over_count(): number;
     pointer_over_id_string_length(index: number): number;
     pointer_over_id_string_ptr(index: number): number;
     get_element_bounds(name: number, len: number, out: number): number;
+    animating(ct: number): number;
+    get_scroll_delta(
+      ct: number,
+      name: number,
+      len: number,
+      out: number,
+    ): number;
     error_count(ct: number): number;
     error_type(ct: number, index: number): number;
     error_message_length(ct: number, index: number): number;
@@ -110,11 +133,18 @@ export async function createTermNative(
     reduce: ct.reduce,
     output: ct.output,
     length: ct.length,
+    animating: ct.animating as Native["animating"],
     setPointer(x: number, y: number, down: boolean) {
       let view = new DataView(memory.buffer);
       view.setFloat32(opsBuf, x, true);
       view.setFloat32(opsBuf + 4, y, true);
       ct.Clay_SetPointerState(opsBuf, down ? 1 : 0);
+    },
+    updateScrollContainers(dx: number, dy: number) {
+      let view = new DataView(memory.buffer);
+      view.setFloat32(opsBuf, dx, true);
+      view.setFloat32(opsBuf + 4, dy, true);
+      ct.Clay_UpdateScrollContainers(0, opsBuf, 0);
     },
     getPointerOverIds(): string[] {
       let decoder = new TextDecoder();
@@ -143,6 +173,18 @@ export async function createTermNative(
         y: view.getFloat32(out + BOUNDING_BOX.y, true),
         width: view.getFloat32(out + BOUNDING_BOX.width, true),
         height: view.getFloat32(out + BOUNDING_BOX.height, true),
+      };
+    },
+    getScrollDelta(ptr: number, id: string): { x: number; y: number } {
+      let enc = new TextEncoder();
+      let bytes = enc.encode(id);
+      new Uint8Array(memory.buffer).set(bytes, opsBuf);
+      let out = opsBuf + 256;
+      ct.get_scroll_delta(ptr, opsBuf, bytes.length, out);
+      let view = new DataView(memory.buffer);
+      return {
+        x: view.getFloat32(out, true),
+        y: view.getFloat32(out + 4, true),
       };
     },
     errorCount(ptr: number): number {

@@ -12,12 +12,21 @@
  */
 
 #include "clayterm.h"
+#include "transitions.h"
 #include "../clay/clay.h"
 #include "buffer.h"
 #include "cell.h"
 #include "mem.h"
 #include "utf8.h"
 #include "wcwidth.h"
+
+/* Module-level pointer to the Term currently executing reduce().
+ * Set/cleared around each render pass so transition handlers (which Clay
+ * invokes with no userData — see Clay_TransitionCallbackArguments) can
+ * report back to the right Term's animating_count. Revisit once
+ * nicbarker/clay#603 lands userData on transition callbacks; then the
+ * handler can resolve its Term from args directly and this can go away. */
+struct Clayterm *ct_active_context = NULL;
 
 /* ── Command buffer protocol ──────────────────────────────────────── */
 
@@ -33,10 +42,17 @@
 #define PROP_BORDER 0x08
 #define PROP_CLIP 0x10
 #define PROP_FLOATING 0x20
+#define PROP_TRANSITION 0x40
 
 /* ── Instance state ───────────────────────────────────────────────── */
 
 #define MAX_ERRORS 32
+#define MAX_SCROLL_DELTAS 16
+
+struct ScrollDelta {
+  uint32_t id;
+  float dx, dy;
+};
 
 struct Clayterm {
   int w, h;
@@ -51,6 +67,10 @@ struct Clayterm {
   /* error collection */
   Clay_ErrorData errors[MAX_ERRORS];
   int error_count;
+  int animating_count;
+  /* scroll delta reporting */
+  struct ScrollDelta scroll_deltas[MAX_SCROLL_DELTAS];
+  int scroll_delta_count;
 };
 
 /* Memory layout inside the arena provided by the host:
@@ -467,9 +487,13 @@ struct Clayterm *init(void *mem, int w, int h) {
   return ct;
 }
 
-void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
+void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row,
+            float deltaTime) {
   int i = 0;
+  ct_active_context = ct;
   ct->error_count = 0;
+  ct->animating_count = 0;
+  ct->scroll_delta_count = 0;
 
   Clay_BeginLayout();
 
@@ -537,25 +561,76 @@ void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
         decl.border.width.bottom = (bw >> 24) & 0xff;
       }
 
+      int clip_xmode = 0, clip_ymode = 0;
+      float clip_mx = 0, clip_my = 0;
       if (mask & PROP_CLIP) {
         uint32_t cl = rd(buf, len, &i);
-        decl.clip.horizontal = cl & 0xff;
-        decl.clip.vertical = (cl >> 8) & 0xff;
+        clip_xmode = cl & 0xff;
+        clip_ymode = (cl >> 8) & 0xff;
+        decl.clip.horizontal = (clip_xmode != 0);
+        decl.clip.vertical = (clip_ymode != 0);
+        if (clip_xmode)
+          clip_mx = rdf(buf, len, &i);
+        if (clip_ymode)
+          clip_my = rdf(buf, len, &i);
+        decl.clip.childOffset.x = clip_mx;
+        decl.clip.childOffset.y = clip_my;
       }
 
       if (mask & PROP_FLOATING) {
         decl.floating.offset.x = rdf(buf, len, &i);
         decl.floating.offset.y = rdf(buf, len, &i);
+        decl.floating.expand.width = rdf(buf, len, &i);
+        decl.floating.expand.height = rdf(buf, len, &i);
         decl.floating.parentId = rd(buf, len, &i);
 
         uint32_t fc = rd(buf, len, &i);
         decl.floating.attachTo = fc & 0xff;
         decl.floating.attachPoints.element = (fc >> 8) & 0xff;
         decl.floating.attachPoints.parent = (fc >> 16) & 0xff;
-        decl.floating.zIndex = (int16_t)((fc >> 24) & 0xff);
+        decl.floating.pointerCaptureMode = (fc >> 24) & 0xff;
+
+        uint32_t fd = rd(buf, len, &i);
+        decl.floating.clipTo = fd & 0xff;
+        decl.floating.zIndex = (int16_t)(fd >> 8);
+      }
+
+      if (mask & PROP_TRANSITION) {
+        float duration = rdf(buf, len, &i);
+        uint32_t props_and_flags = rd(buf, len, &i);
+        uint16_t props = props_and_flags & 0xFFFF;
+        uint8_t easing = (props_and_flags >> 16) & 0xFF;
+        uint8_t interactive = (props_and_flags >> 24) & 0xFF;
+
+        decl.transition.handler = ct_handler_for(easing);
+        decl.transition.duration = duration;
+        decl.transition.properties = (Clay_TransitionProperty)props;
+        decl.transition.interactionHandling =
+            interactive
+                ? CLAY_TRANSITION_ALLOW_INTERACTIONS_WHILE_TRANSITIONING_POSITION
+                : CLAY_TRANSITION_DISABLE_INTERACTIONS_WHILE_TRANSITIONING_POSITION;
       }
 
       Clay__ConfigureOpenElement(decl);
+
+      if ((clip_xmode || clip_ymode) && id_len > 0) {
+        Clay_String str = {.length = (int32_t)id_len, .chars = id_chars};
+        Clay_ElementId eid2 = Clay__HashString(str, 0);
+        Clay_ScrollContainerData sc = Clay_GetScrollContainerData(eid2);
+        if (sc.found && sc.scrollPosition) {
+          float dx = sc.scrollPosition->x - clip_mx;
+          float dy = sc.scrollPosition->y - clip_my;
+          if ((dx != 0 || dy != 0) &&
+              ct->scroll_delta_count < MAX_SCROLL_DELTAS) {
+            ct->scroll_deltas[ct->scroll_delta_count++] =
+                (struct ScrollDelta){.id = eid2.id, .dx = dx, .dy = dy};
+          }
+          if (clip_xmode)
+            sc.scrollPosition->x = clip_mx;
+          if (clip_ymode)
+            sc.scrollPosition->y = clip_my;
+        }
+      }
       break;
     }
 
@@ -577,7 +652,7 @@ void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
       /* attrs byte -> alpha channel for render_text to extract */
       config.textColor.a = (float)((cfg >> 24) & 0xff);
 
-      Clay__OpenTextElement(text, Clay__StoreTextElementConfig(config));
+      Clay__OpenTextElement(text, config);
       break;
     }
 
@@ -590,7 +665,7 @@ void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
     }
   }
 
-  Clay_RenderCommandArray cmds = Clay_EndLayout();
+  Clay_RenderCommandArray cmds = Clay_EndLayout(deltaTime);
 
   /* reset output state */
   ct->out.length = 0;
@@ -638,11 +713,31 @@ void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
   } else {
     present_cups(ct, row);
   }
+
+  ct_active_context = NULL;
 }
 
 char *output(struct Clayterm *ct) { return ct->out.data; }
 
 int length(struct Clayterm *ct) { return ct->out.length; }
+
+int animating(struct Clayterm *ct) { return ct->animating_count; }
+
+int get_scroll_delta(struct Clayterm *ct, const char *name, int name_len,
+                     float *out) {
+  Clay_String str = {.length = name_len, .chars = name};
+  Clay_ElementId eid = Clay__HashString(str, 0);
+  for (int j = 0; j < ct->scroll_delta_count; j++) {
+    if (ct->scroll_deltas[j].id == eid.id) {
+      out[0] = ct->scroll_deltas[j].dx;
+      out[1] = ct->scroll_deltas[j].dy;
+      return 1;
+    }
+  }
+  out[0] = 0;
+  out[1] = 0;
+  return 0;
+}
 
 int get_element_bounds(const char *name, int name_len, float *out) {
   Clay_String str = {.length = name_len, .chars = name};

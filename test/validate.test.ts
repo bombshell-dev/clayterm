@@ -78,6 +78,68 @@ describe("validate", () => {
   it("rejects fractional color", () => {
     expect(validate([text("hi", { color: 1.5 })])).toBe(false);
   });
+
+  it("accepts structured floating attach points", () => {
+    expect(validate([
+      open("x", {
+        floating: {
+          attachPoints: { element: "center-center", parent: "center-center" },
+        },
+      }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("accepts floating expand and clipping fields", () => {
+    expect(validate([
+      open("x", {
+        floating: {
+          expand: { width: 2, height: 3 },
+          pointerCaptureMode: "passthrough",
+          clipTo: "attached-parent",
+          zIndex: 1024,
+        },
+      }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("rejects numeric floating enum values", () => {
+    expect(validate([
+      // deno-lint-ignore no-explicit-any
+      open("x", { floating: { attachTo: 3 as any } }),
+      close(),
+    ])).toBe(false);
+    expect(validate([
+      // deno-lint-ignore no-explicit-any
+      open("x", { floating: { attachPoints: 4 as any } }),
+      close(),
+    ])).toBe(false);
+  });
+
+  it("accepts clip with numeric axis", () => {
+    expect(validate([
+      open("x", { clip: { x: -10 } }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("accepts clip with both axes", () => {
+    expect(validate([
+      open("x", { clip: { x: -20, y: -5 } }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("rejects clip with string axis value", () => {
+    // deno-lint-ignore no-explicit-any
+    expect(validate([open("x", { clip: { x: "invalid" } as any }), close()]))
+      .toBe(false);
+  });
+
+  it("accepts empty clip object", () => {
+    expect(validate([open("x", { clip: {} }), close()])).toBe(true);
+  });
 });
 
 describe("validated", () => {
