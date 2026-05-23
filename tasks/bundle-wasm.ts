@@ -27,7 +27,9 @@ function encodeZ85(data: Uint8Array): string {
   return out.join("");
 }
 
-const wasm = await Deno.readFile("clayterm.wasm");
+const [input = "clayterm.wasm", output = "wasm.ts"] = Deno.args;
+
+const wasm = await Deno.readFile(input);
 
 const compressed = new Uint8Array(
   brotliCompressSync(wasm, {
@@ -50,9 +52,9 @@ const compressed=d(${JSON.stringify(z85)},${compressed.byteLength});
 export const compiled=await WebAssembly.compile(new Uint8Array(brotliDecompressSync(compressed)));
 `;
 
-await Deno.writeTextFile("wasm.ts", source);
+await Deno.writeTextFile(output, source);
 console.log(
-  `wrote wasm.ts (${wasm.length} → ${compressed.byteLength} bytes compressed, ${z85.length} bytes z85, ${
+  `wrote ${output} (${wasm.length} → ${compressed.byteLength} bytes compressed, ${z85.length} bytes z85, ${
     Math.round(z85.length / wasm.length * 100)
   }%)`,
 );
