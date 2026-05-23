@@ -33,6 +33,44 @@ jobs:
       - name: build wasm
         run: make
 
+      - name: upload wasm artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: clayterm-wasm
+          path: |
+            clayterm.wasm
+            wasm.ts
+
+  test-alt-os:
+    needs: test
+    strategy:
+      matrix:
+        os:
+          - name: macos
+            value: macos-latest
+          - name: windows
+            value: windows-latest
+      fail-fast: false
+    runs-on: ${{ matrix.os.value }}
+    name: test ${{ matrix.os.name }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: setup deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: download wasm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: clayterm-wasm
+          path: .
+
       - name: test
         run: deno task test
 
