@@ -1,9 +1,8 @@
 CC = clang
-WASM_OPT ?= wasm-opt
 TARGET = clayterm.wasm
 SRC = src/module.c
 
-CFLAGS = --target=wasm32 -nostdlib -Oz \
+CFLAGS = --target=wasm32 -nostdlib -O2 \
          -ffunction-sections -fdata-sections \
          -mbulk-memory \
          -DCLAY_IMPLEMENTATION -DCLAY_WASM \
@@ -49,7 +48,6 @@ DEPS = $(wildcard src/*.c src/*.h)
 
 $(TARGET): $(DEPS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(SRC)
-	$(WASM_OPT) -Oz --enable-bulk-memory -o $@ $@
 
 wasm.ts: $(TARGET)
 	deno run --allow-read --allow-write tasks/bundle-wasm.ts

@@ -30,9 +30,6 @@ jobs:
       - name: lint
         run: deno lint
 
-      - name: install binaryen
-        run: sudo apt-get install -y binaryen
-
       - name: build wasm
         run: make
 
@@ -91,9 +88,6 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: install binaryen
-        run: sudo apt-get install -y binaryen
-
       - name: build wasm
         run: make
 
@@ -121,9 +115,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-
-      - name: install binaryen
-        run: sudo apt-get install -y binaryen
 
       - name: build wasm
         run: make
