@@ -48,6 +48,108 @@ const RAINBOW = [RED, ORANGE, YELLOW, NGREEN, BLUE, VIOLET];
 
 const BRAILLE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+function* queryCursor(): Operation<CursorEvent> {
+  let parser = yield* until(createInput({ escLatency: 100 }));
+  write(DSR());
+
+  let buf = new Uint8Array(32);
+  while (true) {
+    let n = Deno.stdin.readSync(buf);
+    if (n === null) continue;
+    let result = parser.scan(buf.subarray(0, n));
+    for (let ev of result.events) {
+      if (ev.type === "cursor") {
+        return ev;
+      }
+    }
+  }
+}
+
+function waitKey() {
+  let buf = new Uint8Array(32);
+  while (true) {
+    let n = Deno.stdin.readSync(buf);
+    if (n === null) continue;
+    for (let i = 0; i < n; i++) {
+      if (buf[i] === 0x03) {
+        Deno.stdin.setRaw(false);
+        write(SHOWCURSOR());
+        Deno.exit(0);
+      }
+    }
+    return;
+  }
+}
+
+function box(msg: string, fg: number, border: number): Op[] {
+  return [
+    open("root", {
+      layout: { width: grow(), height: grow(), direction: "ttb" },
+    }),
+    open("box", {
+      layout: {
+        width: grow(),
+        height: grow(),
+        direction: "ttb",
+        padding: { left: 1 },
+        alignY: "center",
+      },
+      border: {
+        color: border,
+        left: 1,
+        right: 1,
+        top: 1,
+        bottom: 1,
+      },
+      cornerRadius: { tl: 1, tr: 1, bl: 1, br: 1 },
+    }),
+    text(msg, { color: fg }),
+    close(),
+    close(),
+  ];
+}
+
+function* transaction(
+  height: number,
+  renderFrame: (frame: number) => Op[],
+  frames: number,
+  interval: number,
+): Operation<void> {
+  let { columns } = Deno.consoleSize();
+
+  write(encode("\n".repeat(height)));
+
+  let pos = yield* queryCursor();
+  /** 1-based terminal row where the region starts */
+  let row = pos.row - height + 1;
+
+  write(ESC("7"));
+  let tty = settings(cursor(false));
+  write(tty.apply);
+
+  let term = validated(
+    yield* until(createTerm({ width: columns, height })),
+  );
+  for (let i = 0; i < frames; i++) {
+    let result = term.render(renderFrame(i), { row });
+    write(new Uint8Array(result.output));
+    yield* sleep(interval);
+  }
+
+  write(tty.revert);
+  write(ESC("8"));
+  write(encode("\n"));
+}
+
+function say(msg: string) {
+  write(encode(msg + "\n"));
+}
+
+function pause() {
+  waitKey();
+  write(encode("\n"));
+}
+
 await main(function* () {
   let { columns } = terminalSize();
   setRawMode(true);
