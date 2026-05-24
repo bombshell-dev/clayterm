@@ -132,7 +132,19 @@ export function pack(
           );
           o += 4;
 
-          view.setUint32(o, (l.alignX ?? 0) | ((l.alignY ?? 0) << 8), true);
+          const alignX = l.alignX === "right"
+            ? 1
+            : l.alignX === "center"
+            ? 2
+            : 0;
+
+          const alignY = l.alignY === "bottom"
+            ? 1
+            : l.alignY === "center"
+            ? 2
+            : 0;
+
+          view.setUint32(o, alignX | (alignY << 8), true);
           o += 4;
         }
 
@@ -271,8 +283,8 @@ export interface OpenElement {
     padding?: { left?: number; right?: number; top?: number; bottom?: number };
     gap?: number;
     direction?: "ltr" | "ttb";
-    alignX?: number;
-    alignY?: number;
+    alignX?: "left" | "center" | "right";
+    alignY?: "top" | "center" | "bottom";
   };
   bg?: number;
   cornerRadius?: { tl?: number; tr?: number; bl?: number; br?: number };
