@@ -132,13 +132,13 @@ export function pack(
           );
           o += 4;
 
-          const alignX = l.alignX === "right"
+          let alignX = l.alignX === "right"
             ? 1
             : l.alignX === "center"
             ? 2
             : 0;
 
-          const alignY = l.alignY === "bottom"
+          let alignY = l.alignY === "bottom"
             ? 1
             : l.alignY === "center"
             ? 2
