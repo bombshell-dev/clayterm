@@ -20,11 +20,11 @@
     "jsr:@std/testing@1": "1.0.17",
     "jsr:@ts-morph/bootstrap@0.27": "0.27.0",
     "jsr:@ts-morph/common@0.27": "0.27.0",
-    "npm:@codspeed/tinybench-plugin@^5.4.0": "5.4.0_tinybench@6.0.2",
+    "npm:@codspeed/tinybench-plugin@^5.4.0": "5.4.0_tinybench@5.1.0",
     "npm:@sinclair/typebox@*": "0.34.48",
     "npm:@sinclair/typebox@0.34": "0.34.48",
     "npm:effection@^4.0.2": "4.0.2",
-    "npm:tinybench@^6.0.2": "6.0.2",
+    "npm:tinybench@5": "5.1.0",
     "npm:valrs@*": "0.1.0"
   },
   "jsr": {
@@ -120,7 +120,7 @@
         "node-gyp-build"
       ]
     },
-    "@codspeed/tinybench-plugin@5.4.0_tinybench@6.0.2": {
+    "@codspeed/tinybench-plugin@5.4.0_tinybench@5.1.0": {
       "integrity": "sha512-jzuFoyyoGxc3Lc+TTl54PnRsgqO3CYbbbnwYSVp/m/4rqvCwSUZChY9EuQJ6uZFbamT3UhWF2N6tDEGShkvsrw==",
       "dependencies": [
         "@codspeed/core",
@@ -319,8 +319,8 @@
     "stack-trace@1.0.0-pre2": {
       "integrity": "sha512-2ztBJRek8IVofG9DBJqdy2N5kulaacX30Nz7xmkYF6ale9WBVmIy6mFBchvGX7Vx/MyjBhx+Rcxqrj+dbOnQ6A=="
     },
-    "tinybench@6.0.2": {
-      "integrity": "sha512-FlHoQpcFvCzeXK5kVPvV7IVgW/hs/B36QWTz876iSdeJguBDfdTSRQmYmaHX+fQNt4hp+gEFB2XXw+8hT4/y8A=="
+    "tinybench@5.1.0": {
+      "integrity": "sha512-LXKNtFualiKOm6gADe1UXPtf8+Nfn1CtPMEHAT33Fd2YjQatrujkDcK0+4wRC1X6t7fxUDXUs6BsvuIgfkDgDg=="
     },
     "valrs@0.1.0": {
       "integrity": "sha512-BqVkjx3qhsRLHerblLDoqEx0OEx7ms0DB6LPv40oWkMfFKUVKrqVuklaGdrPrHyubC5hSHYfEtUiQXrCkC6xHQ=="
@@ -338,7 +338,7 @@
       "npm:@codspeed/tinybench-plugin@^5.4.0",
       "npm:@sinclair/typebox@0.34",
       "npm:effection@^4.0.2",
-      "npm:tinybench@^6.0.2"
+      "npm:tinybench@5"
     ]
   }
 }
