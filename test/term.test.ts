@@ -90,6 +90,76 @@ describe("term", () => {
 ╰──────────────────────────────────────╯`.trim());
   });
 
+  it("renders double border style", () => {
+    let out = print(
+      decode(
+        term.render([
+          open("box", {
+            layout: { width: grow(), height: grow() },
+            border: {
+              color: rgba(255, 255, 255),
+              left: 1,
+              right: 1,
+              top: 1,
+              bottom: 1,
+              style: "double",
+            },
+          }),
+          close(),
+        ]).output,
+      ),
+      40,
+      10,
+    );
+
+    expect(out).toEqual(`
+╔══════════════════════════════════════╗
+║                                      ║
+║                                      ║
+║                                      ║
+║                                      ║
+║                                      ║
+║                                      ║
+║                                      ║
+║                                      ║
+╚══════════════════════════════════════╝`.trim());
+  });
+
+  it("renders bold border style", () => {
+    let out = print(
+      decode(
+        term.render([
+          open("box", {
+            layout: { width: grow(), height: grow() },
+            border: {
+              color: rgba(255, 255, 255),
+              left: 1,
+              right: 1,
+              top: 1,
+              bottom: 1,
+              style: "bold",
+            },
+          }),
+          close(),
+        ]).output,
+      ),
+      40,
+      10,
+    );
+
+    expect(out).toEqual(`
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                                      ┃
+┃                                      ┃
+┃                                      ┃
+┃                                      ┃
+┃                                      ┃
+┃                                      ┃
+┃                                      ┃
+┃                                      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`.trim());
+  });
+
   describe("line mode", () => {
     let box = (msg: string) => [
       open("root", {

@@ -73,6 +73,13 @@ const Border = Type.Object({
   right: Type.Optional(u8),
   top: Type.Optional(u8),
   bottom: Type.Optional(u8),
+  style: Type.Optional(
+    Type.Union([
+      Type.Literal("single"),
+      Type.Literal("double"),
+      Type.Literal("bold"),
+    ]),
+  ),
 });
 
 const Clip = Type.Object({

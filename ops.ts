@@ -146,6 +146,13 @@ export function pack(
             true,
           );
           o += 4;
+          const styleMap: Record<string, number> = {
+            single: 0,
+            double: 1,
+            bold: 2,
+          };
+          view.setUint32(o, styleMap[b.style ?? "single"] ?? 0, true);
+          o += 4;
         }
 
         if (op.clip) {
@@ -259,6 +266,7 @@ export interface OpenElement {
     right?: number;
     top?: number;
     bottom?: number;
+    style?: "single" | "double" | "bold";
   };
   clip?: { horizontal?: boolean; vertical?: boolean };
   floating?: {

@@ -305,12 +305,26 @@ static void render_border(struct Clayterm *ct, int x0, int y0, int x1, int y1,
   int bot = b->width.bottom > 0;
   int left = b->width.left > 0;
   int right = b->width.right > 0;
+  uint8_t style = (uint8_t)b->width.betweenChildren;
 
-  /* corners — rounded when corner radius > 0 */
-  uint32_t tl = b->cornerRadius.topLeft > 0 ? 0x256d : 0x250c;
-  uint32_t tr = b->cornerRadius.topRight > 0 ? 0x256e : 0x2510;
-  uint32_t bl = b->cornerRadius.bottomLeft > 0 ? 0x2570 : 0x2514;
-  uint32_t br = b->cornerRadius.bottomRight > 0 ? 0x256f : 0x2518;
+  uint32_t h_char, v_char, tl, tr, bl, br;
+  switch (style) {
+  case 1: /* double */
+    tl = 0x2554; tr = 0x2557; bl = 0x255a; br = 0x255d;
+    h_char = 0x2550; v_char = 0x2551;
+    break;
+  case 2: /* bold */
+    tl = 0x250f; tr = 0x2513; bl = 0x2517; br = 0x251b;
+    h_char = 0x2501; v_char = 0x2503;
+    break;
+  default: /* single — corners rounded when cornerRadius > 0 */
+    tl = b->cornerRadius.topLeft > 0 ? 0x256d : 0x250c;
+    tr = b->cornerRadius.topRight > 0 ? 0x256e : 0x2510;
+    bl = b->cornerRadius.bottomLeft > 0 ? 0x2570 : 0x2514;
+    br = b->cornerRadius.bottomRight > 0 ? 0x256f : 0x2518;
+    h_char = 0x2500; v_char = 0x2502;
+    break;
+  }
 
   if (top && left)
     setcell(ct, x0, y0, tl, fg, bg);
@@ -324,18 +338,18 @@ static void render_border(struct Clayterm *ct, int x0, int y0, int x1, int y1,
   /* horizontal edges */
   if (top)
     for (int x = x0 + left; x < x1 - right; x++)
-      setcell(ct, x, y0, 0x2500, fg, bg);
+      setcell(ct, x, y0, h_char, fg, bg);
   if (bot)
     for (int x = x0 + left; x < x1 - right; x++)
-      setcell(ct, x, y1 - 1, 0x2500, fg, bg);
+      setcell(ct, x, y1 - 1, h_char, fg, bg);
 
   /* vertical edges */
   if (left)
     for (int y = y0 + top; y < y1 - bot; y++)
-      setcell(ct, x0, y, 0x2502, fg, bg);
+      setcell(ct, x0, y, v_char, fg, bg);
   if (right)
     for (int y = y0 + top; y < y1 - bot; y++)
-      setcell(ct, x1 - 1, y, 0x2502, fg, bg);
+      setcell(ct, x1 - 1, y, v_char, fg, bg);
 }
 
 /* ── Command buffer helpers ───────────────────────────────────────── */
@@ -535,6 +549,7 @@ void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
         decl.border.width.right = (bw >> 8) & 0xff;
         decl.border.width.top = (bw >> 16) & 0xff;
         decl.border.width.bottom = (bw >> 24) & 0xff;
+        decl.border.width.betweenChildren = rd(buf, len, &i) & 0xff;
       }
 
       if (mask & PROP_CLIP) {
