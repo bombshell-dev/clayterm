@@ -187,6 +187,118 @@ describe("term", () => {
     expect(out).toMatch(/^┌─+┬/m);
   });
 
+  it("renders T-junctions for a 2-column single-style grid", () => {
+    let out = print(
+      decode(
+        term.render([
+          open("root", {
+            layout: { width: grow(), height: grow(), direction: "ttb" },
+            border: { color: rgba(255, 255, 255), left: 1, right: 1, top: 1, bottom: 1 },
+          }),
+          open("row", { layout: { width: grow(), height: grow(), direction: "ltr" } }),
+          open("a", {
+            layout: { width: fixed(10), height: grow() },
+            border: { color: rgba(255, 255, 255), right: 1 },
+          }),
+          close(),
+          open("b", { layout: { width: grow(), height: grow() } }),
+          close(),
+          close(),
+          close(),
+        ]).output,
+      ),
+      40,
+      10,
+    );
+
+    expect(out).toMatch(/^┌─+┬─+┐$/m);
+    expect(out).toMatch(/^└─+┴─+┘$/m);
+    expect(out).toMatch(/^│\s+│\s+│$/m);
+  });
+
+  it("renders T-junctions for bold-style borders", () => {
+    let out = print(
+      decode(
+        term.render([
+          open("root", {
+            layout: { width: grow(), height: grow(), direction: "ltr" },
+            border: { color: rgba(255, 255, 255), left: 1, right: 1, top: 1, bottom: 1, style: "bold" },
+          }),
+          open("left", {
+            layout: { width: fixed(10), height: grow() },
+            border: { color: rgba(255, 255, 255), right: 1, style: "bold" },
+          }),
+          close(),
+          open("right", { layout: { width: grow(), height: grow() } }),
+          close(),
+          close(),
+        ]).output,
+      ),
+      40,
+      10,
+    );
+
+    expect(out).toMatch(/^┏━+┳━+┓$/m);
+    expect(out).toMatch(/^┗━+┻━+┛$/m);
+    expect(out).toMatch(/^┃\s+┃\s+┃$/m);
+  });
+
+  it("renders T-junctions for double-style borders", () => {
+    let out = print(
+      decode(
+        term.render([
+          open("root", {
+            layout: { width: grow(), height: grow(), direction: "ltr" },
+            border: { color: rgba(255, 255, 255), left: 1, right: 1, top: 1, bottom: 1, style: "double" },
+          }),
+          open("left", {
+            layout: { width: fixed(10), height: grow() },
+            border: { color: rgba(255, 255, 255), right: 1, style: "double" },
+          }),
+          close(),
+          open("right", { layout: { width: grow(), height: grow() } }),
+          close(),
+          close(),
+        ]).output,
+      ),
+      40,
+      10,
+    );
+
+    expect(out).toMatch(/^╔═+╦═+╗$/m);
+    expect(out).toMatch(/^╚═+╩═+╝$/m);
+    expect(out).toMatch(/^║\s+║\s+║$/m);
+  });
+
+  it("renders mixed single+double T-junction", () => {
+    let out = print(
+      decode(
+        term.render([
+          open("root", {
+            layout: { width: grow(), height: grow(), direction: "ltr" },
+            border: { color: rgba(255, 255, 255), left: 1, right: 1, top: 1, bottom: 1, style: "double" },
+          }),
+          open("left", {
+            layout: { width: fixed(10), height: grow() },
+            border: { color: rgba(255, 255, 255), right: 1, style: "single" },
+          }),
+          close(),
+          open("right", { layout: { width: grow(), height: grow() } }),
+          close(),
+          close(),
+        ]).output,
+      ),
+      40,
+      10,
+    );
+
+    // double-H outer top/bottom meets single-V inner separator → ╤ / ╧
+    expect(out).toMatch(/^╔═+╤═+╗$/m);
+    expect(out).toMatch(/^╚═+╧═+╝$/m);
+    // interior: double verticals on sides, single in middle
+    expect(out).toMatch(/^║\s+│\s+║$/m);
+  });
+
   describe("line mode", () => {
     let box = (msg: string) => [
       open("root", {
