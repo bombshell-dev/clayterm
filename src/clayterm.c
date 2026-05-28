@@ -42,6 +42,7 @@ struct Clayterm {
   int w, h;
   Cell *front;
   Cell *back;
+  uint16_t *junctions;
   Buffer out;
   uint32_t lastfg, lastbg;
   int lastx, lasty;
@@ -54,7 +55,7 @@ struct Clayterm {
 };
 
 /* Memory layout inside the arena provided by the host:
- *   [Clayterm struct] [front cells] [back cells] [output buffer]
+ *   [Clayterm struct] [front cells] [back cells] [junction buffer] [output buffer]
  *
  * Output buffer is sized at 64 bytes per cell — enough for worst-case
  * full-screen redraws with truecolor SGR sequences on every cell.
@@ -412,10 +413,12 @@ static int align64(int n) { return (n + 63) & ~63; }
 int clayterm_size(int w, int h) {
   int cell_count = w * h;
   int cell_bytes = cell_count * (int)sizeof(Cell);
+  int junc_bytes = cell_count * (int)sizeof(uint16_t);
   int out_bytes = cell_count * OUT_BYTES_PER_CELL;
   int clay_bytes = (int)Clay_MinMemorySize();
   return align8((int)sizeof(struct Clayterm)) + align8(cell_bytes) /* front */
          + align8(cell_bytes)                                      /* back */
+         + align8(junc_bytes)                                      /* junctions */
          + align8(out_bytes)    /* output buffer */
          + align64(clay_bytes); /* Clay arena */
 }
@@ -451,10 +454,13 @@ struct Clayterm *init(void *mem, int w, int h) {
   struct Clayterm *ct = (struct Clayterm *)mem;
   int cell_count = w * h;
   int cell_bytes = align8(cell_count * (int)sizeof(Cell));
-  int out_bytes = align8(cell_count * OUT_BYTES_PER_CELL);
+  int junc_bytes = align8(cell_count * (int)sizeof(uint16_t));
+  int out_bytes  = align8(cell_count * OUT_BYTES_PER_CELL);
   char *base = (char *)mem + align8((int)sizeof(struct Clayterm));
 
-  char *clay_mem = base + cell_bytes * 2 + out_bytes;
+  char *junc_start = base + cell_bytes * 2;
+  char *out_start  = junc_start + junc_bytes;
+  char *clay_mem   = out_start + out_bytes;
   int clay_bytes = align64((int)Clay_MinMemorySize());
   Clay_Arena arena =
       Clay_CreateArenaWithCapacityAndMemory(clay_bytes, clay_mem);
@@ -466,17 +472,15 @@ struct Clayterm *init(void *mem, int w, int h) {
       .h = h,
       .front = (Cell *)base,
       .back = (Cell *)(base + cell_bytes),
-      .out = {base + cell_bytes * 2, 0, cell_count * OUT_BYTES_PER_CELL},
+      .junctions = (uint16_t *)junc_start,
+      .out = {out_start, 0, cell_count * OUT_BYTES_PER_CELL},
       .lastfg = 0xffffffff,
       .lastbg = 0xffffffff,
       .lastx = -1,
       .lasty = -1,
   };
 
-  // initialize back buffer with spaces and default fg/bg
   cells_fill(ct->back, w, h, ' ', ATTR_DEFAULT, ATTR_DEFAULT);
-
-  // initialize front buffer with zeros. Every cell will be
   cells_fill(ct->front, w, h, 0, 0, 0);
   return ct;
 }
