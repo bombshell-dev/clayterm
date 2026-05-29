@@ -125,7 +125,7 @@ describe("term", () => {
 ╚══════════════════════════════════════╝`.trim());
   });
 
-  it("renders bold border style", () => {
+  it("renders bold border style (width: 2)", () => {
     let out = print(
       decode(
         term.render([
@@ -133,11 +133,10 @@ describe("term", () => {
             layout: { width: grow(), height: grow() },
             border: {
               color: rgba(255, 255, 255),
-              left: 1,
-              right: 1,
-              top: 1,
-              bottom: 1,
-              style: "bold",
+              left: 2,
+              right: 2,
+              top: 2,
+              bottom: 2,
             },
           }),
           close(),
@@ -216,17 +215,17 @@ describe("term", () => {
     expect(out).toMatch(/^│\s+│\s+│$/m);
   });
 
-  it("renders T-junctions for bold-style borders", () => {
+  it("renders T-junctions for bold-style borders (width: 2)", () => {
     let out = print(
       decode(
         term.render([
           open("root", {
             layout: { width: grow(), height: grow(), direction: "ltr" },
-            border: { color: rgba(255, 255, 255), left: 1, right: 1, top: 1, bottom: 1, style: "bold" },
+            border: { color: rgba(255, 255, 255), left: 2, right: 2, top: 2, bottom: 2 },
           }),
           open("left", {
             layout: { width: fixed(10), height: grow() },
-            border: { color: rgba(255, 255, 255), right: 1, style: "bold" },
+            border: { color: rgba(255, 255, 255), right: 2 },
           }),
           close(),
           open("right", { layout: { width: grow(), height: grow() } }),
@@ -280,7 +279,7 @@ describe("term", () => {
           }),
           open("left", {
             layout: { width: fixed(10), height: grow() },
-            border: { color: rgba(255, 255, 255), right: 1, style: "single" },
+            border: { color: rgba(255, 255, 255), right: 1, style: "solid" },
           }),
           close(),
           open("right", { layout: { width: grow(), height: grow() } }),

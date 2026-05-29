@@ -13,6 +13,18 @@ const PROP_FLOATING = 0x20;
 
 const encoder = new TextEncoder();
 
+// groove/ridge/inset/outset alias to solid (terminal can't do 3D)
+const styleMap: Record<string, number> = {
+  solid:  0,
+  double: 1,
+  dotted: 2,
+  dashed: 3,
+  groove: 0,
+  ridge:  0,
+  inset:  0,
+  outset: 0,
+};
+
 function packAxis(view: DataView, offset: number, axis: SizingAxis): number {
   let o = offset;
   switch (axis.type) {
@@ -146,17 +158,6 @@ export function pack(
             true,
           );
           o += 4;
-          // groove/ridge/inset/outset alias to solid (terminal can't do 3D)
-          const styleMap: Record<string, number> = {
-            solid:  0,
-            double: 1,
-            dotted: 2,
-            dashed: 3,
-            groove: 0,
-            ridge:  0,
-            inset:  0,
-            outset: 0,
-          };
           // Pack as 4 per-side style bytes (left|right<<8|top<<16|bottom<<24).
           // All four are the same value today; this layout reserves space for
           // future per-side style support without a protocol change.

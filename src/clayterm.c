@@ -397,11 +397,18 @@ static void render_border(struct Clayterm *ct, int x0, int y0, int x1, int y1,
   int right = b->width.right  > 0;
   uint8_t style = (uint8_t)b->width.betweenChildren;
 
-  /* map border style (0=single,1=double,2=bold) → junction style (1=single,3=double,2=bold) */
-  static const uint8_t smap[] = {1, 3, 2};
-  uint8_t js = style < 3 ? smap[style] : 1;
+  /* width >= 2 on any side → bold/thick chars; dotted/dashed fall back to single */
+  uint8_t js;
+  if (b->width.top >= 2 || b->width.left >= 2 ||
+      b->width.right >= 2 || b->width.bottom >= 2) {
+    js = 2; /* bold */
+  } else if (style == 1) {
+    js = 3; /* double */
+  } else {
+    js = 1; /* solid/dotted/dashed/groove/… → single */
+  }
 
-  int rounded = (style == 0) &&
+  int rounded = (js == 1) &&
                 (b->cornerRadius.topLeft    > 0 || b->cornerRadius.topRight    > 0 ||
                  b->cornerRadius.bottomLeft > 0 || b->cornerRadius.bottomRight > 0);
 
