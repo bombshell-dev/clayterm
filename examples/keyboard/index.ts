@@ -47,13 +47,14 @@ const GAP = 1;
 const hovered = rgba(80, 80, 100);
 
 const flagNames:
-  (keyof Omit<AppContext, "mode" | "event" | "logged" | "log" | "entered">)[] = [
-    "Disambiguate escape codes",
-    "Report event types",
-    "Report alternate keys",
-    "Report all keys as escapes",
-    "Report associated text",
-  ];
+  (keyof Omit<AppContext, "mode" | "event" | "logged" | "log" | "entered">)[] =
+    [
+      "Disambiguate escape codes",
+      "Report event types",
+      "Report alternate keys",
+      "Report all keys as escapes",
+      "Report associated text",
+    ];
 
 const logEntries: { key: string; name: keyof EventFilter }[] = [
   { key: "a", name: "keydown" },
