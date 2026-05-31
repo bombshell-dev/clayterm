@@ -31,6 +31,23 @@ import {
 import { cursor, settings } from "../../settings.ts";
 import { validated } from "../../validate.ts";
 
+const encode = (s: string) => new TextEncoder().encode(s);
+const write = (b: Uint8Array) => process.stdout.write(Buffer.from(b));
+
+const GREEN = rgba(80, 250, 123);
+const GRAY = rgba(100, 100, 100);
+const CYAN = rgba(139, 233, 253);
+
+const RED = rgba(255, 0, 0);
+const ORANGE = rgba(255, 153, 0);
+const YELLOW = rgba(255, 255, 0);
+const NGREEN = rgba(51, 255, 0);
+const BLUE = rgba(0, 153, 255);
+const VIOLET = rgba(102, 0, 255);
+const RAINBOW = [RED, ORANGE, YELLOW, NGREEN, BLUE, VIOLET];
+
+const BRAILLE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
 await main(function* () {
   let { columns } = terminalSize();
   setRawMode(true);
@@ -246,30 +263,25 @@ function setRawMode(enabled: boolean): void {
   }
 }
 
-const encode = (s: string) => new TextEncoder().encode(s);
-const write = (b: Uint8Array) => process.stdout.write(Buffer.from(b));
-
-const GREEN = rgba(80, 250, 123);
-const GRAY = rgba(100, 100, 100);
-const CYAN = rgba(139, 233, 253);
-
-const RED = rgba(255, 0, 0);
-const ORANGE = rgba(255, 153, 0);
-const YELLOW = rgba(255, 255, 0);
-const NGREEN = rgba(51, 255, 0);
-const BLUE = rgba(0, 153, 255);
-const VIOLET = rgba(102, 0, 255);
-const RAINBOW = [RED, ORANGE, YELLOW, NGREEN, BLUE, VIOLET];
-
-const BRAILLE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
 function* queryCursor(): Operation<CursorEvent> {
   let parser = yield* until(createInput({ escLatency: 100 }));
   write(DSR());
 
   let buf = Buffer.allocUnsafe(32);
   while (true) {
-    let n = readSync(process.stdin.fd, buf, 0, buf.length, null);
+    let n: number;
+    try {
+      n = readSync(process.stdin.fd, buf, 0, buf.length, null);
+    } catch (error) {
+      if (
+        error && typeof error === "object" &&
+        ("code" in error && (error.code === "EAGAIN" || error.code === "EINTR"))
+      ) {
+        continue;
+      }
+      throw error;
+    }
+
     if (n === 0) continue;
     let result = parser.scan(buf.subarray(0, n));
     for (let ev of result.events) {
@@ -283,7 +295,19 @@ function* queryCursor(): Operation<CursorEvent> {
 function waitKey(): void {
   let buf = Buffer.allocUnsafe(32);
   while (true) {
-    let n = readSync(process.stdin.fd, buf, 0, buf.length, null);
+    let n: number;
+    try {
+      n = readSync(process.stdin.fd, buf, 0, buf.length, null);
+    } catch (error) {
+      if (
+        error && typeof error === "object" &&
+        ("code" in error && (error.code === "EAGAIN" || error.code === "EINTR"))
+      ) {
+        continue;
+      }
+      throw error;
+    }
+
     if (n === 0) continue;
     for (let i = 0; i < n; i++) {
       if (buf[i] === 0x03) {

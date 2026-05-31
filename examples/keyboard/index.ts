@@ -35,6 +35,40 @@ import {
 import { useInput } from "./use-input.ts";
 import { useStdin } from "./use-stdin.ts";
 
+const active = rgba(60, 120, 220);
+const inactive = rgba(50, 50, 60);
+const on = rgba(40, 180, 80);
+const label = rgba(220, 220, 220);
+const dim = rgba(100, 100, 120);
+const highlight = rgba(255, 220, 80);
+
+const KEY_W = 5;
+const GAP = 1;
+const hovered = rgba(80, 80, 100);
+
+const flagNames:
+  (keyof Omit<AppContext, "mode" | "event" | "logged" | "log" | "entered">)[] = [
+    "Disambiguate escape codes",
+    "Report event types",
+    "Report alternate keys",
+    "Report all keys as escapes",
+    "Report associated text",
+  ];
+
+const logEntries: { key: string; name: keyof EventFilter }[] = [
+  { key: "a", name: "keydown" },
+  { key: "b", name: "keyup" },
+  { key: "c", name: "keyrepeat" },
+  { key: "d", name: "mousedown" },
+  { key: "e", name: "mouseup" },
+  { key: "f", name: "mousemove" },
+  { key: "g", name: "wheel" },
+  { key: "h", name: "resize" },
+  { key: "i", name: "pointerenter" },
+  { key: "j", name: "pointerleave" },
+  { key: "k", name: "pointerclick" },
+];
+
 await main(function* () {
   let { columns, rows } = terminalSize();
 
@@ -164,16 +198,6 @@ function updateFlagsIfChanged(current: Setting, next: Setting): Setting {
   return next;
 }
 
-const active = rgba(60, 120, 220);
-const inactive = rgba(50, 50, 60);
-const on = rgba(40, 180, 80);
-const label = rgba(220, 220, 220);
-const dim = rgba(100, 100, 120);
-const highlight = rgba(255, 220, 80);
-
-const KEY_W = 5;
-const GAP = 1;
-
 interface KeyDef {
   label: string;
   code: string;
@@ -188,8 +212,6 @@ function matches(k: KeyDef, event: InputEvent | PointerEvent): boolean {
   return isKeyEvent(event) && event.type === "keydown" &&
     event.code.toUpperCase() === k.code.toUpperCase();
 }
-
-const hovered = rgba(80, 80, 100);
 
 function key(ops: Op[], k: KeyDef, ctx: AppContext): void {
   let pressed = ctx.event && matches(k, ctx.event);
@@ -458,30 +480,6 @@ function toggle(ops: Op[], enabled: boolean, name: string): void {
     close(),
   );
 }
-
-const flagNames:
-  (keyof Omit<AppContext, "mode" | "event" | "logged" | "log" | "entered">)[] =
-    [
-      "Disambiguate escape codes",
-      "Report event types",
-      "Report alternate keys",
-      "Report all keys as escapes",
-      "Report associated text",
-    ];
-
-const logEntries: { key: string; name: keyof EventFilter }[] = [
-  { key: "a", name: "keydown" },
-  { key: "b", name: "keyup" },
-  { key: "c", name: "keyrepeat" },
-  { key: "d", name: "mousedown" },
-  { key: "e", name: "mouseup" },
-  { key: "f", name: "mousemove" },
-  { key: "g", name: "wheel" },
-  { key: "h", name: "resize" },
-  { key: "i", name: "pointerenter" },
-  { key: "j", name: "pointerleave" },
-  { key: "k", name: "pointerclick" },
-];
 
 function logToggle(
   ops: Op[],
