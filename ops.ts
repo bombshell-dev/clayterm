@@ -370,6 +370,7 @@ function packSize(ops: Op[]): number {
         if (op.border) n += 8;
         if (op.clip) n += 4;
         if (op.floating) n += 16;
+        if (op.transition) n += 8;
         break;
       }
       case OP_TEXT: {
