@@ -1,3 +1,5 @@
+import { wcwidth } from "./wcwidth.ts";
+
 export interface WrapTextOptions {
   mode?: "words" | "newlines" | "none";
 }
@@ -148,30 +150,7 @@ function* tokens(text: string): IterableIterator<string> {
 
 function cellWidth(char: string): number {
   let code = char.codePointAt(0)!;
-  if (code === 0) return 0;
-  if (code < 32 || (code >= 0x7F && code < 0xA0)) return 0;
-  if (isCombining(code)) return 0;
-  return isWide(code) ? 2 : 1;
-}
-
-function isCombining(code: number): boolean {
-  return (code >= 0x0300 && code <= 0x036F) ||
-    (code >= 0x1AB0 && code <= 0x1AFF) ||
-    (code >= 0x1DC0 && code <= 0x1DFF) ||
-    (code >= 0x20D0 && code <= 0x20FF) ||
-    (code >= 0xFE20 && code <= 0xFE2F);
-}
-
-function isWide(code: number): boolean {
-  return (code >= 0x1100 && code <= 0x115F) ||
-    code === 0x2329 || code === 0x232A ||
-    (code >= 0x2E80 && code <= 0xA4CF && code !== 0x303F) ||
-    (code >= 0xAC00 && code <= 0xD7A3) ||
-    (code >= 0xF900 && code <= 0xFAFF) ||
-    (code >= 0xFE10 && code <= 0xFE19) ||
-    (code >= 0xFE30 && code <= 0xFE6F) ||
-    (code >= 0xFF00 && code <= 0xFF60) ||
-    (code >= 0xFFE0 && code <= 0xFFE6) ||
-    (code >= 0x1F300 && code <= 0x1FAFF) ||
-    (code >= 0x20000 && code <= 0x3FFFD);
+  if (code >= 0xD800 && code <= 0xDFFF) code = 0xFFFD;
+  let width = wcwidth(code);
+  return width > 0 ? width : 0;
 }

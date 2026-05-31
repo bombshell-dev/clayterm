@@ -45,6 +45,12 @@ describe("text measurement helpers", () => {
     expect(measureCellWidth("🙂")).toBe(2);
   });
 
+  it("matches renderer zero-width handling for default-ignorable codepoints", () => {
+    expect(measureCellWidth("a\u200db")).toBe(2);
+    expect(measureCellWidth("x\uFE0Fy")).toBe(2);
+    expect(measureCellWidth("👩‍💻")).toBe(4);
+  });
+
   it("supports words, newlines, and none wrap modes", () => {
     expect(wrapText("hello world", 5)).toEqual([
       { text: "hello", width: 5 },
