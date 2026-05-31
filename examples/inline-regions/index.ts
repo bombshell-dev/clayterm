@@ -31,140 +31,6 @@ import {
 import { cursor, settings } from "../../settings.ts";
 import { validated } from "../../validate.ts";
 
-function terminalSize(): { columns: number; rows: number } {
-  return process.stdout.isTTY
-    ? {
-      columns: process.stdout.columns ?? 80,
-      rows: process.stdout.rows ?? 24,
-    }
-    : { columns: 80, rows: 24 };
-}
-
-function setRawMode(enabled: boolean): void {
-  if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
-    process.stdin.setRawMode(enabled);
-  }
-}
-
-const encode = (s: string) => new TextEncoder().encode(s);
-const write = (b: Uint8Array) => process.stdout.write(Buffer.from(b));
-
-const GREEN = rgba(80, 250, 123);
-const GRAY = rgba(100, 100, 100);
-const CYAN = rgba(139, 233, 253);
-
-const RED = rgba(255, 0, 0);
-const ORANGE = rgba(255, 153, 0);
-const YELLOW = rgba(255, 255, 0);
-const NGREEN = rgba(51, 255, 0);
-const BLUE = rgba(0, 153, 255);
-const VIOLET = rgba(102, 0, 255);
-const RAINBOW = [RED, ORANGE, YELLOW, NGREEN, BLUE, VIOLET];
-
-const BRAILLE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-function* queryCursor(): Operation<CursorEvent> {
-  let parser = yield* until(createInput({ escLatency: 100 }));
-  write(DSR());
-
-  let buf = Buffer.allocUnsafe(32);
-  while (true) {
-    let n = readSync(process.stdin.fd, buf, 0, buf.length, null);
-    if (n === 0) continue;
-    let result = parser.scan(buf.subarray(0, n));
-    for (let ev of result.events) {
-      if (ev.type === "cursor") {
-        return ev;
-      }
-    }
-  }
-}
-
-function waitKey(): void {
-  let buf = Buffer.allocUnsafe(32);
-  while (true) {
-    let n = readSync(process.stdin.fd, buf, 0, buf.length, null);
-    if (n === 0) continue;
-    for (let i = 0; i < n; i++) {
-      if (buf[i] === 0x03) {
-        setRawMode(false);
-        write(SHOWCURSOR());
-        process.exit(0);
-      }
-    }
-    return;
-  }
-}
-
-function box(msg: string, fg: number, border: number): Op[] {
-  return [
-    open("root", {
-      layout: { width: grow(), height: grow(), direction: "ttb" },
-    }),
-    open("box", {
-      layout: {
-        width: grow(),
-        height: grow(),
-        direction: "ttb",
-        padding: { left: 1 },
-        alignY: 2,
-      },
-      border: {
-        color: border,
-        left: 1,
-        right: 1,
-        top: 1,
-        bottom: 1,
-      },
-      cornerRadius: { tl: 1, tr: 1, bl: 1, br: 1 },
-    }),
-    text(msg, { color: fg }),
-    close(),
-    close(),
-  ];
-}
-
-function* transaction(
-  height: number,
-  renderFrame: (frame: number) => Op[],
-  frames: number,
-  interval: number,
-): Operation<void> {
-  let { columns } = terminalSize();
-
-  write(encode("\n".repeat(height)));
-
-  let pos = yield* queryCursor();
-  /** 1-based terminal row where the region starts */
-  let row = pos.row - height + 1;
-
-  write(ESC("7"));
-  let tty = settings(cursor(false));
-  write(tty.apply);
-
-  let term = validated(
-    yield* until(createTerm({ width: columns, height })),
-  );
-  for (let i = 0; i < frames; i++) {
-    let result = term.render(renderFrame(i), { row });
-    write(new Uint8Array(result.output));
-    yield* sleep(interval);
-  }
-
-  write(tty.revert);
-  write(ESC("8"));
-  write(encode("\n"));
-}
-
-function say(msg: string) {
-  write(encode(msg + "\n"));
-}
-
-function pause(): void {
-  waitKey();
-  write(encode("\n"));
-}
-
 await main(function* () {
   let { columns } = terminalSize();
   setRawMode(true);
@@ -172,6 +38,7 @@ await main(function* () {
   write(tty.apply);
 
   yield* ensure(() => {
+    // SGR reset sequence
     setRawMode(false);
     write(CSI("0m"));
     write(tty.revert);
@@ -363,3 +230,137 @@ await main(function* () {
   write(CSI("0m"));
   write(encode("\n"));
 });
+
+function terminalSize(): { columns: number; rows: number } {
+  return process.stdout.isTTY
+    ? {
+      columns: process.stdout.columns ?? 80,
+      rows: process.stdout.rows ?? 24,
+    }
+    : { columns: 80, rows: 24 };
+}
+
+function setRawMode(enabled: boolean): void {
+  if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
+    process.stdin.setRawMode(enabled);
+  }
+}
+
+const encode = (s: string) => new TextEncoder().encode(s);
+const write = (b: Uint8Array) => process.stdout.write(Buffer.from(b));
+
+const GREEN = rgba(80, 250, 123);
+const GRAY = rgba(100, 100, 100);
+const CYAN = rgba(139, 233, 253);
+
+const RED = rgba(255, 0, 0);
+const ORANGE = rgba(255, 153, 0);
+const YELLOW = rgba(255, 255, 0);
+const NGREEN = rgba(51, 255, 0);
+const BLUE = rgba(0, 153, 255);
+const VIOLET = rgba(102, 0, 255);
+const RAINBOW = [RED, ORANGE, YELLOW, NGREEN, BLUE, VIOLET];
+
+const BRAILLE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+function* queryCursor(): Operation<CursorEvent> {
+  let parser = yield* until(createInput({ escLatency: 100 }));
+  write(DSR());
+
+  let buf = Buffer.allocUnsafe(32);
+  while (true) {
+    let n = readSync(process.stdin.fd, buf, 0, buf.length, null);
+    if (n === 0) continue;
+    let result = parser.scan(buf.subarray(0, n));
+    for (let ev of result.events) {
+      if (ev.type === "cursor") {
+        return ev;
+      }
+    }
+  }
+}
+
+function waitKey(): void {
+  let buf = Buffer.allocUnsafe(32);
+  while (true) {
+    let n = readSync(process.stdin.fd, buf, 0, buf.length, null);
+    if (n === 0) continue;
+    for (let i = 0; i < n; i++) {
+      if (buf[i] === 0x03) {
+        setRawMode(false);
+        write(SHOWCURSOR());
+        process.exit(0);
+      }
+    }
+    return;
+  }
+}
+
+function box(msg: string, fg: number, border: number): Op[] {
+  return [
+    open("root", {
+      layout: { width: grow(), height: grow(), direction: "ttb" },
+    }),
+    open("box", {
+      layout: {
+        width: grow(),
+        height: grow(),
+        direction: "ttb",
+        padding: { left: 1 },
+        alignY: 2,
+      },
+      border: {
+        color: border,
+        left: 1,
+        right: 1,
+        top: 1,
+        bottom: 1,
+      },
+      cornerRadius: { tl: 1, tr: 1, bl: 1, br: 1 },
+    }),
+    text(msg, { color: fg }),
+    close(),
+    close(),
+  ];
+}
+
+function* transaction(
+  height: number,
+  renderFrame: (frame: number) => Op[],
+  frames: number,
+  interval: number,
+): Operation<void> {
+  let { columns } = terminalSize();
+
+  write(encode("\n".repeat(height)));
+
+  let pos = yield* queryCursor();
+  /** 1-based terminal row where the region starts */
+  let row = pos.row - height + 1;
+
+  write(ESC("7"));
+  let tty = settings(cursor(false));
+  write(tty.apply);
+
+  let term = validated(
+    yield* until(createTerm({ width: columns, height })),
+  );
+  for (let i = 0; i < frames; i++) {
+    let result = term.render(renderFrame(i), { row });
+    write(new Uint8Array(result.output));
+    yield* sleep(interval);
+  }
+
+  write(tty.revert);
+  write(ESC("8"));
+  write(encode("\n"));
+}
+
+function say(msg: string) {
+  write(encode(msg + "\n"));
+}
+
+function pause(): void {
+  waitKey();
+  write(encode("\n"));
+}

@@ -35,6 +35,87 @@ import {
 import { useInput } from "./use-input.ts";
 import { useStdin } from "./use-stdin.ts";
 
+await main(function* () {
+  let { columns, rows } = terminalSize();
+
+  setRawMode(true);
+
+  let stdin = yield* useStdin();
+  let input = useInput(stdin);
+
+  let term = yield* until(createTerm({ width: columns, height: rows }));
+
+  let tty = settings(alternateBuffer(), cursor(false));
+  writeStdout(tty.apply);
+
+  let modality = recognizer();
+  let context = modality.next().value;
+
+  let flags = ttyFlags(context);
+  writeStdout(flags.apply);
+
+  yield* ensure(() => {
+    setRawMode(false);
+    writeStdout(flags.revert);
+    writeStdout(tty.revert);
+  });
+
+  let { output } = term.render(keyboard(context));
+
+  writeStdout(output);
+
+  let pointer = {
+    events: createChannel<PointerEvent, void>(),
+    state: undefined as { x: number; y: number; down: boolean } | undefined,
+  };
+
+  for (let event of yield* each(merge(input, pointer.events))) {
+    if (event.type === "keydown" && event.ctrl && event.key === "c") {
+      break;
+    }
+    if (event.type === "pointerenter") {
+      context.entered.add(event.id);
+    }
+    if (event.type === "pointerleave") {
+      context.entered.delete(event.id);
+    }
+
+    let prev = context.logged;
+    context = modality.next(event).value;
+    if (context.event && context.log[context.event.type as keyof EventFilter]) {
+      context = { ...context, logged: context.event };
+    } else {
+      context = { ...context, logged: prev };
+    }
+
+    flags = updateFlagsIfChanged(flags, ttyFlags(context));
+
+    if (context["Capture mouse events"]) {
+      if ("x" in event) {
+        pointer.state = {
+          x: event.x,
+          y: event.y,
+          down: event.type === "mousedown",
+        };
+      }
+    } else {
+      pointer.state = undefined;
+    }
+
+    let { output, events } = term.render(keyboard(context), {
+      pointer: pointer.state,
+    });
+
+    for (let event of events) {
+      yield* pointer.events.send(event);
+    }
+
+    writeStdout(output);
+
+    yield* each.next();
+  }
+});
+
 function terminalSize(): { columns: number; rows: number } {
   return process.stdout.isTTY
     ? {
@@ -611,87 +692,6 @@ function ttyFlags(ctx: AppContext): Setting {
   }
   return settings(...parts);
 }
-
-await main(function* () {
-  let { columns, rows } = terminalSize();
-
-  setRawMode(true);
-
-  let stdin = yield* useStdin();
-  let input = useInput(stdin);
-
-  let term = yield* until(createTerm({ width: columns, height: rows }));
-
-  let tty = settings(alternateBuffer(), cursor(false));
-  writeStdout(tty.apply);
-
-  let modality = recognizer();
-  let context = modality.next().value;
-
-  let flags = ttyFlags(context);
-  writeStdout(flags.apply);
-
-  yield* ensure(() => {
-    setRawMode(false);
-    writeStdout(flags.revert);
-    writeStdout(tty.revert);
-  });
-
-  let { output } = term.render(keyboard(context));
-
-  writeStdout(output);
-
-  let pointer = {
-    events: createChannel<PointerEvent, void>(),
-    state: undefined as { x: number; y: number; down: boolean } | undefined,
-  };
-
-  for (let event of yield* each(merge(input, pointer.events))) {
-    if (event.type === "keydown" && event.ctrl && event.key === "c") {
-      break;
-    }
-    if (event.type === "pointerenter") {
-      context.entered.add(event.id);
-    }
-    if (event.type === "pointerleave") {
-      context.entered.delete(event.id);
-    }
-
-    let prev = context.logged;
-    context = modality.next(event).value;
-    if (context.event && context.log[context.event.type as keyof EventFilter]) {
-      context = { ...context, logged: context.event };
-    } else {
-      context = { ...context, logged: prev };
-    }
-
-    flags = updateFlagsIfChanged(flags, ttyFlags(context));
-
-    if (context["Capture mouse events"]) {
-      if ("x" in event) {
-        pointer.state = {
-          x: event.x,
-          y: event.y,
-          down: event.type === "mousedown",
-        };
-      }
-    } else {
-      pointer.state = undefined;
-    }
-
-    let { output, events } = term.render(keyboard(context), {
-      pointer: pointer.state,
-    });
-
-    for (let event of events) {
-      yield* pointer.events.send(event);
-    }
-
-    writeStdout(output);
-
-    yield* each.next();
-  }
-});
 
 function* recognizer(): Iterator<AppContext, never, InputEvent | PointerEvent> {
   let current: AppContext = {
