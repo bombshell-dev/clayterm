@@ -1,10 +1,15 @@
 CC = clang
 
-CFLAGS = --target=wasm32 -nostdlib -O2 \
-         -ffunction-sections -fdata-sections \
-         -mbulk-memory \
-         -DCLAY_IMPLEMENTATION -DCLAY_WASM \
-         -Isrc -I.
+CFLAGS_BASE = --target=wasm32 -nostdlib \
+              -ffunction-sections -fdata-sections \
+              -mbulk-memory \
+              -Isrc -I.
+
+INPUT_OPT  ?= -Oz
+LAYOUT_OPT ?= -O2
+
+LAYOUT_CFLAGS = $(CFLAGS_BASE) $(LAYOUT_OPT) -DCLAY_IMPLEMENTATION -DCLAY_WASM
+INPUT_CFLAGS  = $(CFLAGS_BASE) $(INPUT_OPT)
 
 LDFLAGS_COMMON = -Wl,--no-entry \
                  -Wl,--import-memory \
@@ -55,10 +60,10 @@ all: layout.wasm input.wasm layout.wasm.ts input.wasm.ts
 	@echo "Built input.wasm  ($$(wc -c < input.wasm) bytes raw, $$(gzip -c input.wasm | wc -c) bytes gzip)"
 
 layout.wasm: $(DEPS)
-	$(CC) $(CFLAGS) $(LAYOUT_LDFLAGS) -o $@ src/module-layout.c
+	$(CC) $(LAYOUT_CFLAGS) $(LAYOUT_LDFLAGS) -o $@ src/module-layout.c
 
 input.wasm: $(DEPS)
-	$(CC) $(filter-out -DCLAY_IMPLEMENTATION -DCLAY_WASM, $(CFLAGS)) $(INPUT_LDFLAGS) -o $@ src/module-input.c
+	$(CC) $(INPUT_CFLAGS) $(INPUT_LDFLAGS) -o $@ src/module-input.c
 
 layout.wasm.ts: layout.wasm
 	deno run --allow-read --allow-write tasks/bundle-wasm.ts layout.wasm layout.wasm.ts
