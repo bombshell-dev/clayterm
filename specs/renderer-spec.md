@@ -25,6 +25,9 @@ pointer event model and certain wrapper types — those are described in Section
 Input parsing is specified separately in the
 [Clayterm Input Specification](input-spec.md).
 
+Transitions are specified separately in the
+[Clayterm Transitions Specification](transitions-spec.md).
+
 ---
 
 ## 2. Scope
@@ -640,9 +643,58 @@ The `open()` constructor currently accepts the following property groups in its
 - **`cornerRadius`** — per-corner radius values, producing rounded box-drawing
   characters
 - **`clip`** — clip region configuration for scroll containers
-- **`floating`** — floating-element configuration (offset, parent reference,
-  attach points, z-index)
+- **`floating`** — floating-element configuration (offset, expansion, parent
+  reference, attach target, structured attach points, pointer capture mode, clip
+  target, z-index)
 - **`scroll`** — scroll container configuration
+
+The `floating` object shape is:
+
+```ts
+floating?: {
+  x?: number;
+  y?: number;
+  expand?: { width?: number; height?: number };
+  parent?: number;
+  attachTo?: "none" | "parent" | "element" | "root";
+  attachPoints?: {
+    element?:
+      | "left-top"
+      | "left-center"
+      | "left-bottom"
+      | "center-top"
+      | "center-center"
+      | "center-bottom"
+      | "right-top"
+      | "right-center"
+      | "right-bottom";
+    parent?:
+      | "left-top"
+      | "left-center"
+      | "left-bottom"
+      | "center-top"
+      | "center-center"
+      | "center-bottom"
+      | "right-top"
+      | "right-center"
+      | "right-bottom";
+  };
+  pointerCaptureMode?: "capture" | "passthrough";
+  clipTo?: "none" | "attached-parent";
+  /** signed 16-bit integer */
+  zIndex?: number;
+}
+```
+
+The `floating` object configures Clay floating layout behavior. `x` and `y`
+provide the floating offset. `expand` expands the floating bounds. `parent`
+identifies the target element when `attachTo` is `"element"`. `attachTo` selects
+whether the element is attached to no target, its parent, an element, or the
+layout root. `attachPoints.element` describes the anchor on the floating
+element, and `attachPoints.parent` describes the anchor on the attached target.
+`pointerCaptureMode` controls whether the floating element captures pointer
+input or lets it pass through, `clipTo` controls inherited clipping, and
+`zIndex` controls floating order and is transferred as a signed 16-bit integer.
 
 The `text()` constructor currently accepts: `color`, `fontSize`,
 `letterSpacing`, `lineHeight`, and attribute flags (`bold`, `italic`,
@@ -751,6 +803,71 @@ and used in tests.
 **`pack(ops, mem, offset)`** — An internal function that serializes a directive
 array into the transfer encoding described in Section 12.1. Currently exported
 but not public API; its exposure is incidental to the module structure.
+
+### 12.6 Text measurement helpers
+
+The module may also expose pure TypeScript text-measurement helpers for callers
+that need pre-layout estimates without instantiating a `Term`:
+
+```ts
+interface WrapTextOptions {
+  mode?: "words" | "newlines" | "none";
+}
+
+interface WrappedLine {
+  text: string;
+  width: number;
+}
+
+measureCellWidth(text: string): number;
+wrapText(
+  text: string,
+  width: number,
+  options?: WrapTextOptions,
+): WrappedLine[];
+measureWrappedHeight(
+  text: string,
+  width: number,
+  options?: WrapTextOptions,
+): number;
+```
+
+The current intended behavior is:
+
+- `measureCellWidth()` returns the terminal cell width of the full string using
+  the same Unicode-width model described in Section 13.
+- `wrapText()` returns line records with both the emitted text and its measured
+  width.
+- `measureWrappedHeight()` returns the number of wrapped lines that `wrapText()`
+  would produce for the same inputs.
+- `mode: "words"` wraps on token boundaries while preserving explicit newline
+  breaks.
+- `mode: "newlines"` splits only on explicit `\n` characters and does not
+  perform width-based wrapping.
+- `mode: "none"` collapses explicit newlines and returns at most one line.
+- The helpers operate on JavaScript strings directly. They do not require the
+  caller's text to be copied into WASM linear memory or encoded into a full
+  UTF-8 byte buffer as a precondition for measurement.
+- Large-input behavior is bounded by host JavaScript memory, not by Clayterm's
+  WASM linear-memory capacity. Inputs materially larger than the renderer's
+  initial WASM memory footprint are intended to remain valid helper inputs.
+- `measureCellWidth()` and `measureWrappedHeight()` are intended to process
+  large inputs in a single pass over the string without allocating auxiliary
+  storage proportional to the UTF-8 byte length of the entire input.
+  `wrapText()` necessarily allocates output proportional to the number of
+  wrapped lines it returns, but it likewise should not require a second
+  full-input UTF-8 buffer.
+- Rendering oversized whole-document input remains constrained by the renderer's
+  transfer buffer. If a frame exceeds transfer-buffer capacity while packing
+  text, Clayterm MUST throw a descriptive `RangeError` identifying the capacity
+  failure and SHOULD direct callers to render a smaller visible slice or reduce
+  frame content. Clayterm MUST NOT expose only the raw host-level TypedArray
+  message `"offset is out of bounds"` for this condition.
+
+These helpers are independent of the renderer's frame lifecycle and perform no
+IO or WASM interaction. They exist as convenience APIs for higher-level
+frameworks and virtualized views that need width and height estimation before
+building directive arrays.
 
 ---
 
