@@ -5,7 +5,7 @@ CFLAGS_BASE = --target=wasm32 -nostdlib \
               -mbulk-memory \
               -Isrc -I.
 
-INPUT_OPT  ?= -Oz
+INPUT_OPT  ?= -O2
 LAYOUT_OPT ?= -O2
 
 LAYOUT_CFLAGS = $(CFLAGS_BASE) $(LAYOUT_OPT) -DCLAY_IMPLEMENTATION -DCLAY_WASM
