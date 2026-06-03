@@ -5,8 +5,8 @@ const results: Array<{ file: string; raw: number; gzip: number }> = [];
 
 for await (const entry of Deno.readDir(dir)) {
   if (!entry.isFile) continue;
-  const path = `${dir}/${entry.name}`;
-  const data = await Deno.readFile(path);
+  let path = `${dir}/${entry.name}`;
+  let data = await Deno.readFile(path);
   results.push({
     file: entry.name,
     raw: data.byteLength,
