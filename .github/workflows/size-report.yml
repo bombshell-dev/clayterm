@@ -83,15 +83,6 @@ jobs:
 
             if (deltaGzip === 0 && deltaRaw === 0) return;
 
-            const takeaway = deltaGzip < 0 ? 'Size Reduced' : 'Size Increased';
-
-            const body = [
-              '<!-- size-report -->',
-              `**${takeaway}** — ${fmtDelta(deltaGzip)} gz, ${fmtDelta(deltaRaw)} raw`,
-              '',
-              `${fmt(headTotal.gzip)} gz (${fmt(headTotal.raw)} raw)`,
-            ].join('\n');
-
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -99,6 +90,25 @@ jobs:
             });
 
             const existing = comments.find(c => c.body.startsWith('<!-- size-report -->'));
+
+            // Skip if the head sizes haven't changed since the last push
+            if (existing) {
+              const match = existing.body.match(/<!-- sizes:(.*?) -->/);
+              if (match) {
+                const prev = JSON.parse(match[1]);
+                if (prev.raw === headTotal.raw && prev.gzip === headTotal.gzip) return;
+              }
+            }
+
+            const takeaway = deltaGzip < 0 ? 'Size Reduced' : 'Size Increased';
+
+            const body = [
+              '<!-- size-report -->',
+              `<!-- sizes:${JSON.stringify(headTotal)} -->`,
+              `**${takeaway}** — ${fmtDelta(deltaGzip)} gz, ${fmtDelta(deltaRaw)} raw`,
+              '',
+              `${fmt(headTotal.gzip)} gz (${fmt(headTotal.raw)} raw)`,
+            ].join('\n');
 
             if (existing) {
               await github.rest.issues.updateComment({
