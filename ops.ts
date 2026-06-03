@@ -1,3 +1,6 @@
+import type { Transition } from "./ops-transitions.ts";
+import { easingByte, propertyMask } from "./ops-transitions.ts";
+
 /* Command buffer opcodes — mirrors ops.h */
 const OP_OPEN_ELEMENT = 0x02;
 const OP_TEXT = 0x03;
@@ -11,6 +14,7 @@ const PROP_CORNER_RADIUS = 0x04;
 const PROP_BORDER = 0x08;
 const PROP_CLIP = 0x10;
 const PROP_FLOATING = 0x20;
+const PROP_TRANSITION = 0x40;
 
 const encoder = new TextEncoder();
 
@@ -108,6 +112,7 @@ export function pack(
         if (op.border) mask |= PROP_BORDER;
         if (op.clip) mask |= PROP_CLIP;
         if (op.floating) mask |= PROP_FLOATING;
+        if (op.transition) mask |= PROP_TRANSITION;
         view.setUint32(o, mask, true);
         o += 4;
 
@@ -180,15 +185,42 @@ export function pack(
           o += 4;
           view.setFloat32(o, f.y ?? 0, true);
           o += 4;
+          view.setFloat32(o, f.expand?.width ?? 0, true);
+          o += 4;
+          view.setFloat32(o, f.expand?.height ?? 0, true);
+          o += 4;
           view.setUint32(o, f.parent ?? 0, true);
           o += 4;
           view.setUint32(
             o,
-            (f.attachTo ?? 0) | ((f.attachPoints ?? 0) << 8) |
-              ((f.zIndex ?? 0) << 16),
+            encodeAttachTo(f.attachTo) |
+              (encodeAttachPoint(f.attachPoints?.element) << 8) |
+              (encodeAttachPoint(f.attachPoints?.parent) << 16) |
+              (encodePointerCaptureMode(f.pointerCaptureMode) << 24),
             true,
           );
           o += 4;
+          view.setUint32(
+            o,
+            encodeClipTo(f.clipTo) | (((f.zIndex ?? 0) & 0xffff) << 8),
+            true,
+          );
+          o += 4;
+        }
+
+        if (op.transition) {
+          let t = op.transition;
+          let pmask = 0;
+          for (let name of t.properties) pmask |= propertyMask(name);
+
+          view.setFloat32(o, t.duration, true);
+          o += 4;
+          view.setUint16(o, pmask, true);
+          o += 2;
+          view.setUint8(o, easingByte(t.easing ?? "linear"));
+          o += 1;
+          view.setUint8(o, t.interactive ? 1 : 0);
+          o += 1;
         }
         break;
       }
@@ -287,11 +319,79 @@ export interface OpenElement {
   floating?: {
     x?: number;
     y?: number;
+    expand?: { width?: number; height?: number };
     parent?: number;
-    attachTo?: number;
-    attachPoints?: number;
+    attachTo?: AttachTo;
+    attachPoints?: { element?: AttachPoint; parent?: AttachPoint };
+    pointerCaptureMode?: PointerCaptureMode;
+    clipTo?: ClipTo;
     zIndex?: number;
   };
+  transition?: Transition;
+}
+
+export type AttachPoint =
+  | "left-top"
+  | "left-center"
+  | "left-bottom"
+  | "center-top"
+  | "center-center"
+  | "center-bottom"
+  | "right-top"
+  | "right-center"
+  | "right-bottom";
+
+export type AttachTo = "none" | "parent" | "element" | "root";
+
+export type PointerCaptureMode = "capture" | "passthrough";
+
+export type ClipTo = "none" | "attached-parent";
+
+const ATTACH_POINT: Record<AttachPoint, number> = {
+  "left-top": 0,
+  "left-center": 1,
+  "left-bottom": 2,
+  "center-top": 3,
+  "center-center": 4,
+  "center-bottom": 5,
+  "right-top": 6,
+  "right-center": 7,
+  "right-bottom": 8,
+};
+
+const ATTACH_TO: Record<AttachTo, number> = {
+  none: 0,
+  parent: 1,
+  element: 2,
+  root: 3,
+};
+
+const POINTER_CAPTURE_MODE: Record<PointerCaptureMode, number> = {
+  capture: 0,
+  passthrough: 1,
+};
+
+const CLIP_TO: Record<ClipTo, number> = {
+  none: 0,
+  "attached-parent": 1,
+};
+
+function encodeAttachPoint(value: AttachPoint | undefined): number {
+  return value === undefined ? 0 : ATTACH_POINT[value];
+}
+
+function encodeAttachTo(value: AttachTo | undefined): number {
+  return value === undefined ? 0 : ATTACH_TO[value];
+}
+
+function encodePointerCaptureMode(
+  value: PointerCaptureMode | undefined,
+): number {
+  return value === undefined ? 0 : POINTER_CAPTURE_MODE[value];
+}
+
+function encodeClipTo(value: ClipTo | undefined): number {
+  return value === undefined ? 0 : CLIP_TO[value];
 }
 
 export interface Text {
@@ -349,6 +449,7 @@ function packSize(ops: Op[]): number {
         if (op.border) n += 8;
         if (op.clip) n += 4;
         if (op.floating) n += 16;
+        if (op.transition) n += 8;
         break;
       }
       case OP_TEXT: {

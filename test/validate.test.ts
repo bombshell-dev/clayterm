@@ -19,6 +19,20 @@ describe("validate", () => {
     expect(validate([])).toBe(true);
   });
 
+  it("accepts transition ops", () => {
+    expect(validate([
+      open("x", {
+        transition: {
+          duration: 0.2,
+          easing: "easeOut",
+          properties: ["x", "bg"],
+          interactive: true,
+        },
+      }),
+      close(),
+    ])).toBe(true);
+  });
+
   it("rejects ops with wrong directive", () => {
     expect(validate([{ directive: 0xff }])).toBe(false);
   });
@@ -29,6 +43,23 @@ describe("validate", () => {
 
   it("rejects text missing content", () => {
     expect(validate([{ directive: 0x03 }])).toBe(false);
+  });
+
+  it("rejects invalid transition properties", () => {
+    expect(validate([
+      open("x", {
+        // deno-lint-ignore no-explicit-any
+        transition: { duration: 0.2, properties: ["opacity" as any] },
+      }),
+      close(),
+    ])).toBe(false);
+  });
+
+  it("rejects negative transition duration", () => {
+    expect(validate([
+      open("x", { transition: { duration: -1, properties: ["x"] } }),
+      close(),
+    ])).toBe(false);
   });
 
   it("rejects non-array", () => {
@@ -77,6 +108,66 @@ describe("validate", () => {
 
   it("rejects fractional color", () => {
     expect(validate([text("hi", { color: 1.5 })])).toBe(false);
+  });
+
+  it("accepts structured floating attach points", () => {
+    expect(validate([
+      open("x", {
+        floating: {
+          attachPoints: { element: "center-center", parent: "center-center" },
+        },
+      }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("accepts floating expand and clipping fields", () => {
+    expect(validate([
+      open("x", {
+        floating: {
+          expand: { width: 2, height: 3 },
+          pointerCaptureMode: "passthrough",
+          clipTo: "attached-parent",
+          zIndex: 1024,
+        },
+      }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("accepts signed floating z-index values", () => {
+    expect(validate([
+      open("x", { floating: { zIndex: -1 } }),
+      close(),
+    ])).toBe(true);
+    expect(validate([
+      open("x", { floating: { zIndex: 32767 } }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("rejects floating z-index values outside signed 16-bit range", () => {
+    expect(validate([
+      open("x", { floating: { zIndex: -32769 } }),
+      close(),
+    ])).toBe(false);
+    expect(validate([
+      open("x", { floating: { zIndex: 32768 } }),
+      close(),
+    ])).toBe(false);
+  });
+
+  it("rejects numeric floating enum values", () => {
+    expect(validate([
+      // deno-lint-ignore no-explicit-any
+      open("x", { floating: { attachTo: 3 as any } }),
+      close(),
+    ])).toBe(false);
+    expect(validate([
+      // deno-lint-ignore no-explicit-any
+      open("x", { floating: { attachPoints: 4 as any } }),
+      close(),
+    ])).toBe(false);
   });
 });
 
