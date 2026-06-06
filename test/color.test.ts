@@ -4,7 +4,7 @@ import { describe, expect, it } from "./suite.ts";
 
 const decode = (b: Uint8Array) => new TextDecoder().decode(b);
 
-describe("true default foreground", () => {
+describe("foreground", () => {
   it("emits uncolored text with no concrete foreground", async () => {
     let term = await createTerm({ width: 12, height: 1 });
     let ansi = decode(term.render([text("hi")]).output);
