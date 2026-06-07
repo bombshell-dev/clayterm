@@ -40,6 +40,7 @@ bench.add("input throughput (mixed corpus, chunked read loop)", () => {
     dispatched += events.length;
   }
   if (dispatched === 0) throw new Error("expected events");
+  return Promise.resolve();
 });
 
 await bench.run();
