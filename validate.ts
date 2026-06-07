@@ -108,6 +108,7 @@ const TextOp = Type.Object({
   directive: Type.Literal(0x03),
   content: Type.String(),
   color: Type.Optional(rgba),
+  bg: Type.Optional(rgba),
   fontSize: Type.Optional(u8),
   fontId: Type.Optional(u8),
   wrap: Type.Optional(u8),

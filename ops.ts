@@ -208,6 +208,14 @@ export function pack(
         let textDefault = op.color === undefined;
         view.setUint32(o, op.color ?? 0, true);
         o += 4;
+
+        // No explicit bg: leave the terminal default bg by writing
+        // 0 and setting ATTR_DEFAULT (0x80 in the attrs byte). The C path ORs
+        // it into bg and emit_attr skips the background SGR
+        let bg = op.bg === undefined ? 0x80000000 : op.bg & 0x00FFFFFF;
+        view.setUint32(o, bg, true);
+        o += 4;
+
         view.setUint32(
           o,
           (op.fontSize ?? 1) |
@@ -302,6 +310,7 @@ export interface Text {
   directive: typeof OP_TEXT;
   content: string;
   color?: number;
+  bg?: number;
   fontSize?: number;
   fontId?: number;
   wrap?: number;
@@ -356,7 +365,7 @@ function packSize(ops: Op[]): number {
         break;
       }
       case OP_TEXT: {
-        n += 4 + 4 + 4; // opcode + color + cfg
+        n += 4 + 4 + 4 + 4; // opcode + color + bg + cfg
         n += 4 + Math.ceil(encoder.encode(op.content).length / 4) * 4; // string
         break;
       }
