@@ -34,7 +34,9 @@ import { validated } from "../../validate.ts";
 const encode = (s: string) => new TextEncoder().encode(s);
 const write = (b: Uint8Array) => process.stdout.write(Buffer.from(b));
 
+const WHITE = rgba(255, 255, 255);
 const GREEN = rgba(80, 250, 123);
+const GREEN_BG = rgba(20, 70, 38);
 const GRAY = rgba(100, 100, 100);
 const CYAN = rgba(139, 233, 253);
 
@@ -135,7 +137,7 @@ await main(function* () {
               direction: "ltr",
             },
           }),
-          text("✓ Frobnicated", { color: GREEN }),
+          text(" ✓ Frobnicated ", { color: WHITE, bg: GREEN_BG }),
           close(),
         ];
       }
