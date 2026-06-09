@@ -644,7 +644,7 @@ The `open()` constructor currently accepts the following property groups in its
   padding (per-side), alignment (currently numeric enum values, with a planned
   transition to string literals), direction (top-to-bottom or left-to-right),
   and gap
-- **`border`** — per-side border widths and border color
+- **`border`** — per-side border widths, border color, and border background color
 - **`cornerRadius`** — per-corner radius values, producing rounded box-drawing
   characters
 - **`clip`** — clip region configuration for scroll containers
@@ -659,6 +659,11 @@ The `text()` constructor accepts: `color`, `bg`, `fontSize`, `letterSpacing`,
 These property groups represent the current implementation surface. New groups
 and fields have been added incrementally and more may follow. Alignment values
 are expected to transition from numeric to string-literal form.
+
+**Border background.** When `border.bg` is provided, the renderer MUST apply
+that background color to all cells occupied by border glyphs (corners, horizontal
+edges, and vertical edges). When `border.bg` is omitted, the renderer MUST NOT
+override the background in border cells; the terminal default background applies.
 
 **Border width and layout interaction.** In the underlying layout engine (Clay),
 border configuration does not affect layout computation. This is Clay's intended

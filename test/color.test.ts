@@ -1,4 +1,4 @@
-import { close, grow, open, rgba, text } from "../ops.ts";
+import { close, fixed, grow, open, rgba, text } from "../ops.ts";
 import { createTerm } from "../term.ts";
 import { describe, expect, it } from "./suite.ts";
 
@@ -41,6 +41,34 @@ describe("foreground", () => {
 });
 
 describe("background", () => {
+  it("fills border cells with the requested border-level bg", async () => {
+    let term = await createTerm({ width: 12, height: 4 });
+    let bg = randomTextBgColor();
+    let ansi = decode(
+      term.render([
+        open("box", {
+          layout: { width: fixed(8), height: fixed(3), direction: "ttb" },
+          border: {
+            color: rgba(255, 255, 255),
+            bg: bg.value,
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 1,
+          },
+        }),
+        text("Hi"),
+        close(),
+      ]).output,
+    );
+
+    let corner = ansi.indexOf("┌");
+    expect(corner).toBeGreaterThanOrEqual(0);
+
+    let beforeCorner = ansi.slice(0, corner);
+    expect(beforeCorner).toContain(bg.sgr);
+  });
+
   it("fills glyph cells with the requested text-level bg", async () => {
     let term = await createTerm({ width: 20, height: 1 });
     let bg = randomTextBgColor();
@@ -54,6 +82,52 @@ describe("background", () => {
 
     let beforeH = ansi.slice(0, ansi.indexOf("H"));
     expect(beforeH).toContain(bg.sgr);
+  });
+
+  it("resets border bg on subsequent frames without border bg", async () => {
+    let term = await createTerm({ width: 12, height: 4 });
+    let bg = randomTextBgColor();
+
+    // Frame 1: border with bg
+    term.render([
+      open("box", {
+        layout: { width: fixed(8), height: fixed(3), direction: "ttb" },
+        border: {
+          color: rgba(255, 255, 255),
+          bg: bg.value,
+          left: 1,
+          right: 1,
+          top: 1,
+          bottom: 1,
+        },
+      }),
+      text("Hi"),
+      close(),
+    ]);
+
+    // Frame 2: same border, no bg
+    let ansi = decode(
+      term.render([
+        open("box", {
+          layout: { width: fixed(8), height: fixed(3), direction: "ttb" },
+          border: {
+            color: rgba(255, 255, 255),
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 1,
+          },
+        }),
+        text("Hi"),
+        close(),
+      ]).output,
+    );
+
+    let corner = ansi.indexOf("┌");
+    expect(corner).toBeGreaterThanOrEqual(0);
+
+    let beforeCorner = ansi.slice(0, corner);
+    expect(beforeCorner).not.toContain(bg.sgr);
   });
 
   it("resets the background before writing trailing cells", async () => {

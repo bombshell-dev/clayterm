@@ -156,6 +156,12 @@ export function pack(
           let b = op.border;
           view.setUint32(o, b.color, true);
           o += 4;
+
+          // ATTR_DEFAULT sentinel (bit 31 set) means "use terminal default bg"
+          let bg = b.bg === undefined ? 0x80000000 : b.bg & 0x00FFFFFF;
+          view.setUint32(o, bg, true);
+          o += 4;
+
           view.setUint32(
             o,
             (b.left ?? 0) | ((b.right ?? 0) << 8) | ((b.top ?? 0) << 16) |
@@ -290,6 +296,7 @@ export interface OpenElement {
   cornerRadius?: { tl?: number; tr?: number; bl?: number; br?: number };
   border?: {
     color: number;
+    bg?: number;
     left?: number;
     right?: number;
     top?: number;
@@ -359,7 +366,7 @@ function packSize(ops: Op[]): number {
         if (op.layout) n += 6 * 4 + 4 + 4 + 4; // 2 axes (3 words each) + pad + gap + align
         if (op.bg !== undefined) n += 4;
         if (op.cornerRadius) n += 4;
-        if (op.border) n += 8;
+        if (op.border) n += 12;
         if (op.clip) n += 4;
         if (op.floating) n += 16;
         break;

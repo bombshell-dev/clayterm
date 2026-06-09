@@ -301,9 +301,10 @@ static void render_text(struct Clayterm *ct, int x0, int y0,
 }
 
 static void render_border(struct Clayterm *ct, int x0, int y0, int x1, int y1,
-                          Clay_BorderRenderData *b) {
+                          Clay_RenderCommand *cmd) {
+  Clay_BorderRenderData *b = &cmd->renderData.border;
   uint32_t fg = color(b->color);
-  uint32_t bg = ATTR_DEFAULT;
+  uint32_t bg = (uint32_t)(uintptr_t)cmd->userData;
   int top = b->width.top > 0;
   int bot = b->width.bottom > 0;
   int left = b->width.left > 0;
@@ -533,6 +534,8 @@ void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
       if (mask & PROP_BORDER) {
         decl.border.color = unpack_color(rd(buf, len, &i));
 
+        decl.userData = (void *)(uintptr_t)rd(buf, len, &i);
+
         uint32_t bw = rd(buf, len, &i);
         decl.border.width.left = bw & 0xff;
         decl.border.width.right = (bw >> 8) & 0xff;
@@ -621,7 +624,7 @@ void reduce(struct Clayterm *ct, uint32_t *buf, int len, int mode, int row) {
       render_text(ct, x0, y0, cmd);
       break;
     case CLAY_RENDER_COMMAND_TYPE_BORDER:
-      render_border(ct, x0, y0, x1, y1, &cmd->renderData.border);
+      render_border(ct, x0, y0, x1, y1, cmd);
       break;
     case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START:
       ct->clipping = 1;
