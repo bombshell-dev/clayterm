@@ -7,6 +7,7 @@ import type { RenderOptions, RenderResult, Term } from "./term.ts";
 
 const u8 = Type.Integer({ minimum: 0, maximum: 255 });
 const u16 = Type.Integer({ minimum: 0, maximum: 65535 });
+const i16 = Type.Integer({ minimum: -32768, maximum: 32767 });
 
 /* RGBA color packed as (a << 24 | r << 16 | g << 8 | b). When alpha >= 128,
  * bit 31 is set and JavaScript interprets the value as a negative int32.
@@ -92,13 +93,51 @@ const Clip = Type.Object({
   vertical: Type.Optional(Type.Boolean()),
 });
 
+const AttachPoint = Type.Union([
+  Type.Literal("left-top"),
+  Type.Literal("left-center"),
+  Type.Literal("left-bottom"),
+  Type.Literal("center-top"),
+  Type.Literal("center-center"),
+  Type.Literal("center-bottom"),
+  Type.Literal("right-top"),
+  Type.Literal("right-center"),
+  Type.Literal("right-bottom"),
+]);
+
+const AttachTo = Type.Union([
+  Type.Literal("none"),
+  Type.Literal("parent"),
+  Type.Literal("element"),
+  Type.Literal("root"),
+]);
+
+const PointerCaptureMode = Type.Union([
+  Type.Literal("capture"),
+  Type.Literal("passthrough"),
+]);
+
+const ClipTo = Type.Union([
+  Type.Literal("none"),
+  Type.Literal("attached-parent"),
+]);
+
 const Floating = Type.Object({
   x: Type.Optional(Type.Number()),
   y: Type.Optional(Type.Number()),
+  expand: Type.Optional(Type.Object({
+    width: Type.Optional(Type.Number()),
+    height: Type.Optional(Type.Number()),
+  })),
   parent: Type.Optional(Type.Integer({ minimum: 0 })),
-  attachTo: Type.Optional(u8),
-  attachPoints: Type.Optional(u8),
-  zIndex: Type.Optional(u16),
+  attachTo: Type.Optional(AttachTo),
+  attachPoints: Type.Optional(Type.Object({
+    element: Type.Optional(AttachPoint),
+    parent: Type.Optional(AttachPoint),
+  })),
+  pointerCaptureMode: Type.Optional(PointerCaptureMode),
+  clipTo: Type.Optional(ClipTo),
+  zIndex: Type.Optional(i16),
 });
 
 /* ── Op types (discriminated on `directive`) ──────────────────────── */
