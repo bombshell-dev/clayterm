@@ -132,7 +132,15 @@ export function pack(
           );
           o += 4;
 
-          view.setUint32(o, (l.alignX ?? 0) | ((l.alignY ?? 0) << 8), true);
+          let alignX = l.alignX === "right" ? 1 : l.alignX === "center" ? 2 : 0;
+
+          let alignY = l.alignY === "bottom"
+            ? 1
+            : l.alignY === "center"
+            ? 2
+            : 0;
+
+          view.setUint32(o, alignX | (alignY << 8), true);
           o += 4;
         }
 
@@ -214,14 +222,26 @@ export function pack(
       case OP_TEXT: {
         view.setUint32(o, OP_TEXT, true);
         o += 4;
-        view.setUint32(o, op.color ?? 0xFFFFFFFF, true);
+        // No explicit color: leave the terminal default foreground by writing
+        // 0 and setting ATTR_DEFAULT (0x80 in the attrs byte). The C path ORs
+        // it into fg and emit_attr skips the foreground SGR (mirrors unset bg).
+        let textDefault = op.color === undefined;
+        view.setUint32(o, op.color ?? 0, true);
         o += 4;
+
+        // No explicit bg: leave the terminal default bg by writing
+        // 0 and setting ATTR_DEFAULT (0x80 in the attrs byte). The C path ORs
+        // it into bg and emit_attr skips the background SGR
+        let bg = op.bg === undefined ? 0x80000000 : op.bg & 0x00FFFFFF;
+        view.setUint32(o, bg, true);
+        o += 4;
+
         view.setUint32(
           o,
           (op.fontSize ?? 1) |
             ((op.fontId ?? 0) << 8) |
             ((op.wrap ?? 0) << 16) |
-            ((op.attrs ?? 0) << 24),
+            (((op.attrs ?? 0) | (textDefault ? 0x80 : 0)) << 24),
           true,
         );
         o += 4;
@@ -283,8 +303,8 @@ export interface OpenElement {
     padding?: { left?: number; right?: number; top?: number; bottom?: number };
     gap?: number;
     direction?: "ltr" | "ttb";
-    alignX?: number;
-    alignY?: number;
+    alignX?: "left" | "center" | "right";
+    alignY?: "top" | "center" | "bottom";
   };
   bg?: number;
   cornerRadius?: { tl?: number; tr?: number; bl?: number; br?: number };
@@ -377,6 +397,7 @@ export interface Text {
   directive: typeof OP_TEXT;
   content: string;
   color?: number;
+  bg?: number;
   fontSize?: number;
   fontId?: number;
   wrap?: number;
@@ -427,11 +448,12 @@ function packSize(ops: Op[]): number {
         if (op.cornerRadius) n += 4;
         if (op.border) n += 8;
         if (op.clip) n += 4;
-        if (op.floating) n += 16;
+        // x, y, expand width/height, parent, attach/pointer, clip/z
+        if (op.floating) n += 7 * 4;
         break;
       }
       case OP_TEXT: {
-        n += 4 + 4 + 4; // opcode + color + cfg
+        n += 4 + 4 + 4 + 4; // opcode + color + bg + cfg
         n += 4 + Math.ceil(encoder.encode(op.content).length / 4) * 4; // string
         break;
       }

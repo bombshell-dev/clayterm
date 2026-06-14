@@ -1,5 +1,5 @@
 import { describe, expect, it } from "./suite.ts";
-import { close, open, pack, text } from "../ops.ts";
+import { close, open, pack, snapshot, text } from "../ops.ts";
 
 describe("pack", () => {
   it("throws a descriptive RangeError when text exceeds the transfer buffer", () => {
@@ -48,5 +48,28 @@ describe("pack", () => {
     );
     expect((error as Error).message).toContain("element id");
     expect((error as Error).message).not.toBe("offset is out of bounds");
+  });
+
+  it("sizes snapshots with floating elements", () => {
+    expect(() =>
+      snapshot([
+        open("float", {
+          floating: {
+            x: 1,
+            y: 2,
+            expand: { width: 3, height: 4 },
+            attachTo: "root",
+            attachPoints: {
+              element: "center-center",
+              parent: "center-center",
+            },
+            pointerCaptureMode: "passthrough",
+            clipTo: "attached-parent",
+            zIndex: -1,
+          },
+        }),
+        close(),
+      ])
+    ).not.toThrow();
   });
 });

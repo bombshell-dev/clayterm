@@ -57,8 +57,20 @@ const Layout = Type.Object({
   direction: Type.Optional(
     Type.Union([Type.Literal("ltr"), Type.Literal("ttb")]),
   ),
-  alignX: Type.Optional(u8),
-  alignY: Type.Optional(u8),
+  alignX: Type.Optional(
+    Type.Union([
+      Type.Literal("left"),
+      Type.Literal("center"),
+      Type.Literal("right"),
+    ]),
+  ),
+  alignY: Type.Optional(
+    Type.Union([
+      Type.Literal("top"),
+      Type.Literal("center"),
+      Type.Literal("bottom"),
+    ]),
+  ),
 });
 
 const CornerRadius = Type.Object({
@@ -147,6 +159,7 @@ const TextOp = Type.Object({
   directive: Type.Literal(0x03),
   content: Type.String(),
   color: Type.Optional(rgba),
+  bg: Type.Optional(rgba),
   fontSize: Type.Optional(u8),
   fontId: Type.Optional(u8),
   wrap: Type.Optional(u8),
