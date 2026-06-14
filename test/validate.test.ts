@@ -85,6 +85,53 @@ describe("validate", () => {
       close(),
     ])).toBe(false);
   });
+
+  it("accepts structured floating attach points", () => {
+    expect(validate([
+      open("x", {
+        floating: {
+          attachPoints: { element: "center-center", parent: "center-center" },
+        },
+      }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("accepts floating expand and clipping fields", () => {
+    expect(validate([
+      open("x", {
+        floating: {
+          expand: { width: 2, height: 3 },
+          pointerCaptureMode: "passthrough",
+          clipTo: "attached-parent",
+          zIndex: 1024,
+        },
+      }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("accepts signed floating z-index values", () => {
+    expect(validate([
+      open("x", { floating: { zIndex: -1 } }),
+      close(),
+    ])).toBe(true);
+    expect(validate([
+      open("x", { floating: { zIndex: 32767 } }),
+      close(),
+    ])).toBe(true);
+  });
+
+  it("rejects floating z-index values outside signed 16-bit range", () => {
+    expect(validate([
+      open("x", { floating: { zIndex: -32769 } }),
+      close(),
+    ])).toBe(false);
+    expect(validate([
+      open("x", { floating: { zIndex: 32768 } }),
+      close(),
+    ])).toBe(false);
+  });
 });
 
 describe("validated", () => {
@@ -112,7 +159,9 @@ describe("validated", () => {
   });
 
   it("throws on invalid ops", () => {
-    // deno-lint-ignore no-explicit-any
-    expect(() => term.render([{ directive: 0xff }] as any)).toThrow(TypeError);
+    // Call through Reflect so the runtime guard sees deliberately invalid input
+    // without weakening the TypeScript surface.
+    expect(() => Reflect.apply(term.render, term, [[{ directive: 0xff }]]))
+      .toThrow(TypeError);
   });
 });

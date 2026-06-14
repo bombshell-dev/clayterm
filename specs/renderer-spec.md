@@ -641,25 +641,73 @@ The `open()` constructor currently accepts the following property groups in its
 `props` parameter:
 
 - **`layout`** — sizing (width and height, specified via sizing helpers),
-  padding (per-side), alignment (currently numeric enum values, with a planned
-  transition to string literals), direction (top-to-bottom or left-to-right),
-  and gap
+  padding (per-side), alignment (`alignX`: `"left"` | `"center"` | `"right"`;
+  `alignY`: `"top"` | `"center"` | `"bottom"`, defaulting to left/top when
+  omitted), direction (top-to-bottom or left-to-right), and gap
 - **`border`** — per-side border widths, border color, and border background
   color
 - **`cornerRadius`** — per-corner radius values, producing rounded box-drawing
   characters
 - **`clip`** — clip region configuration for scroll containers
-- **`floating`** — floating-element configuration (offset, parent reference,
-  attach points, z-index)
+- **`floating`** — floating-element configuration (offset, expansion, parent
+  reference, attach target, structured attach points, pointer capture mode, clip
+  target, z-index)
 - **`scroll`** — scroll container configuration
+
+The `floating` object shape is:
+
+```ts
+floating?: {
+  x?: number;
+  y?: number;
+  expand?: { width?: number; height?: number };
+  parent?: number;
+  attachTo?: "none" | "parent" | "element" | "root";
+  attachPoints?: {
+    element?:
+      | "left-top"
+      | "left-center"
+      | "left-bottom"
+      | "center-top"
+      | "center-center"
+      | "center-bottom"
+      | "right-top"
+      | "right-center"
+      | "right-bottom";
+    parent?:
+      | "left-top"
+      | "left-center"
+      | "left-bottom"
+      | "center-top"
+      | "center-center"
+      | "center-bottom"
+      | "right-top"
+      | "right-center"
+      | "right-bottom";
+  };
+  pointerCaptureMode?: "capture" | "passthrough";
+  clipTo?: "none" | "attached-parent";
+  /** signed 16-bit integer */
+  zIndex?: number;
+}
+```
+
+The `floating` object configures Clay floating layout behavior. `x` and `y`
+provide the floating offset. `expand` expands the floating bounds. `parent`
+identifies the target element when `attachTo` is `"element"`. `attachTo` selects
+whether the element is attached to no target, its parent, an element, or the
+layout root. `attachPoints.element` describes the anchor on the floating
+element, and `attachPoints.parent` describes the anchor on the attached target.
+`pointerCaptureMode` controls whether the floating element captures pointer
+input or lets it pass through, `clipTo` controls inherited clipping, and
+`zIndex` controls floating order and is transferred as a signed 16-bit integer.
 
 The `text()` constructor accepts: `color`, `bg`, `fontSize`, `letterSpacing`,
 `lineHeight`, and attribute flags (`bold`, `italic`, `underline`,
 `strikethrough`).
 
 These property groups represent the current implementation surface. New groups
-and fields have been added incrementally and more may follow. Alignment values
-are expected to transition from numeric to string-literal form.
+and fields have been added incrementally and more may follow.
 
 **Border background.** When `border.bg` is provided, the renderer MUST apply
 that background color to all cells occupied by border glyphs (corners,
