@@ -43,8 +43,8 @@ state. Clay drives the hit testing; no manual coordinate math required.
 ## Architecture
 
 `@bomb.sh/tty` does not do any I/O itself. On the ouput side, it converts UI
-elements into a raw sequence of bytes and pointer events, and on the input
-side, it converts a stream of raw bytes into structured events.
+elements into a raw sequence of bytes and pointer events, and on the input side,
+it converts a stream of raw bytes into structured events.
 
 ### Output
 
