@@ -1,4 +1,5 @@
 import { describe, expect, it } from "./suite.ts";
+import { setTimeout as sleep } from 'node:timers/promises';
 import { createInput, type InputEvent, type InputOptions } from "../input.ts";
 
 function str(s: string): Uint8Array {
@@ -14,10 +15,6 @@ function concat(...parts: Uint8Array[]): Uint8Array {
     off += p.length;
   }
   return out;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 function sig(e: InputEvent): string {
