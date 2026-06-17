@@ -1,6 +1,6 @@
-# Building clayterm from source
+# Building @bomb.sh/tty from source
 
-This guide is for maintainers and builders working on clayterm itself.
+This guide is for maintainers and builders working on `@bomb.sh/tty` itself.
 
 It covers:
 
@@ -30,8 +30,8 @@ The build depends on the `clay` git submodule.
 Preferred fresh clone:
 
 ```sh
-git clone --recurse-submodules https://github.com/bombshell-dev/clayterm.git
-cd clayterm
+git clone --recurse-submodules https://github.com/bombshell-dev/tty.git
+cd tty
 ```
 
 If you already cloned without submodules:
@@ -77,7 +77,7 @@ Then install LLVM and Deno with Homebrew:
 brew install llvm deno
 ```
 
-Use Homebrew LLVM before Apple's system `clang` when building clayterm:
+Use Homebrew LLVM before Apple's system `clang` when building `@bomb.sh/tty`:
 
 ```sh
 echo 'export PATH="$(brew --prefix llvm)/bin:$PATH"' >> ~/.zshrc

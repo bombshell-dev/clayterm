@@ -64,7 +64,7 @@ function packString(
   let next = o + 4 + paddedLength;
   if (next > end) {
     throw new RangeError(
-      `clayterm transfer buffer capacity exceeded while packing ${context} ` +
+      `transfer buffer capacity exceeded while packing ${context} ` +
         `(${next} byte offset, ${end} byte limit). ` +
         `Render a smaller visible slice or reduce frame content.`,
     );

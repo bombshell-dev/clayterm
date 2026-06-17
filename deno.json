@@ -1,5 +1,5 @@
 {
-  "name": "@clayterm/clayterm",
+  "name": "@bomb.sh/tty",
   "license": "MIT",
   "tasks": {
     "test": "deno test",
