@@ -39,6 +39,7 @@ const GREEN = rgba(80, 250, 123);
 const GREEN_BG = rgba(20, 70, 38);
 const GRAY = rgba(100, 100, 100);
 const CYAN = rgba(139, 233, 253);
+const DARK_BG = rgba(30, 30, 40);
 
 const RED = rgba(255, 0, 0);
 const ORANGE = rgba(255, 153, 0);
@@ -84,7 +85,7 @@ await main(function* () {
   );
 
   let first = term.render(
-    box("Press any key to compile modules.", CYAN, GRAY),
+    box("Press any key to compile modules.", CYAN, GRAY, DARK_BG),
     { row },
   );
   write(new Uint8Array(first.output));
@@ -101,6 +102,7 @@ await main(function* () {
         `${icon} ${label}  ${time}`,
         done ? GREEN : CYAN,
         done ? GREEN : GRAY,
+        DARK_BG,
       ),
       { row },
     );
@@ -113,6 +115,32 @@ await main(function* () {
   write(encode("\n"));
 
   yield* sleep(500);
+
+  // Demo: border bg
+  write(encode("\n\n\n"));
+
+  let bgPos = yield* queryCursor();
+  let bgRow = bgPos.row - 2;
+  write(ESC("7"));
+
+  let bgTerm = validated(
+    yield* until(createTerm({ width: columns, height: 3 })),
+  );
+
+  let PURPLE_BG = rgba(80, 40, 120);
+  let bgResult = bgTerm.render(
+    box("Border backgrounds fill border cells.", WHITE, GREEN, PURPLE_BG),
+    { row: bgRow },
+  );
+  write(new Uint8Array(bgResult.output));
+
+  waitKey();
+
+  write(ESC("8"));
+  write(CSI("0m"));
+  write(encode("\n"));
+
+  yield* sleep(200);
 
   write(
     encode(
@@ -322,7 +350,7 @@ function waitKey(): void {
   }
 }
 
-function box(msg: string, fg: number, border: number): Op[] {
+function box(msg: string, fg: number, border: number, bg: number): Op[] {
   return [
     open("root", {
       layout: { width: grow(), height: grow(), direction: "ttb" },
@@ -337,6 +365,7 @@ function box(msg: string, fg: number, border: number): Op[] {
       },
       border: {
         color: border,
+        bg,
         left: 1,
         right: 1,
         top: 1,
