@@ -1,10 +1,6 @@
 import { isOpen, type Op, pack } from "./ops.ts";
 import { type BoundingBox, createTermNative } from "./term-native.ts";
-import {
-  type CursorShape,
-  POPPOINTERSHAPE,
-  PUSHPOINTERSHAPE,
-} from "./termcodes.ts";
+import { type CursorShape, POINTERSHAPE } from "./termcodes.ts";
 
 export interface TermOptions {
   height: number;
@@ -105,7 +101,7 @@ export async function createTerm(options: TermOptions): Promise<Term> {
   let wasDown = false;
   let lastRenderAt: number | undefined;
   let wasAnimating = false;
-  let cursorShape: CursorShape | null = null;
+  let cursorShape: CursorShape = "default";
 
   return {
     render(ops: Op[], options?: RenderOptions): RenderResult {
@@ -171,7 +167,10 @@ export async function createTerm(options: TermOptions): Promise<Term> {
 
       let cursor: Uint8Array | undefined;
       if (options?.trackCursor) {
-        let active: CursorShape | null = null;
+        // Set-only OSC 22: the base is "default" (kitty and Ghostty both honor
+        // a bare set; the kitty push/pop stack is ignored by set-only terminals
+        // like Ghostty).
+        let active: CursorShape = "default";
         if (overIds.length > 0) {
           let shapes = new Map<string, CursorShape>();
           for (let op of ops) {
@@ -188,10 +187,7 @@ export async function createTerm(options: TermOptions): Promise<Term> {
           }
         }
         if (active !== cursorShape) {
-          let parts: Uint8Array[] = [];
-          if (cursorShape !== null) parts.push(POPPOINTERSHAPE());
-          if (active !== null) parts.push(PUSHPOINTERSHAPE(active));
-          cursor = concat(parts);
+          cursor = POINTERSHAPE(active);
           cursorShape = active;
         }
       }
@@ -221,16 +217,4 @@ export async function createTerm(options: TermOptions): Promise<Term> {
       return { output, events, info, errors, animating, cursor };
     },
   };
-}
-
-function concat(parts: Uint8Array[]): Uint8Array {
-  let total = 0;
-  for (let part of parts) total += part.length;
-  let out = new Uint8Array(total);
-  let offset = 0;
-  for (let part of parts) {
-    out.set(part, offset);
-    offset += part.length;
-  }
-  return out;
 }
