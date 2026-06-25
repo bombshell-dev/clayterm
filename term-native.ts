@@ -53,6 +53,7 @@ import { compiled } from "./wasm.ts";
 export async function createTermNative(
   w: number,
   h: number,
+  sync: boolean,
 ): Promise<Native> {
   let memory = new WebAssembly.Memory({ initial: 2 });
   let exports: Record<string, CallableFunction> = {};
@@ -85,7 +86,7 @@ export async function createTermNative(
   let ct = exports as unknown as {
     __heap_base: WebAssembly.Global;
     clayterm_size(w: number, h: number): number;
-    init(mem: number, w: number, h: number): number;
+    init(mem: number, w: number, h: number, sync: number): number;
     reduce(
       ct: number,
       buf: number,
@@ -124,7 +125,7 @@ export async function createTermNative(
     memory.grow(pages - current);
   }
 
-  let statePtr = ct.init(heap, w, h);
+  let statePtr = ct.init(heap, w, h, sync ? 1 : 0);
   let opsBuf = (heap + size + 3) & ~3;
 
   return {

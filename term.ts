@@ -4,6 +4,16 @@ import { type BoundingBox, createTermNative } from "./term-native.ts";
 export interface TermOptions {
   height: number;
   width: number;
+
+  /**
+   * Wrap every full-screen frame in Synchronized Output (DEC mode 2026:
+   * `CSI ?2026 h` … `CSI ?2026 l`) so the terminal presents it atomically and
+   * never tears mid-update. Terminals that don't support the mode ignore it, so
+   * this is safe to leave on. Set `false` for raw output (e.g. piping, or a
+   * terminal you've found misbehaves). Inline (line mode) frames are never
+   * wrapped. Defaults to `true`.
+   */
+  sync?: boolean;
 }
 
 export interface RenderOptions {
@@ -74,8 +84,8 @@ export interface Term {
 }
 
 export async function createTerm(options: TermOptions): Promise<Term> {
-  let { width, height } = options;
-  let native = await createTermNative(width, height);
+  let { width, height, sync = true } = options;
+  let native = await createTermNative(width, height, sync);
   let { memory, statePtr, opsBuf } = native;
 
   let prev = new Set<string>();

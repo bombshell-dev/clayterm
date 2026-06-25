@@ -52,9 +52,11 @@ describe("term", () => {
       ]).output,
     );
 
-    // the SGR active when "h" is emitted should include the
-    // parent's red background (48;2;255;0;0), not terminal default
-    let before = ansi.slice(0, ansi.indexOf("h"));
+    // the SGR active when the "hi" glyphs are emitted should include the
+    // parent's red background (48;2;255;0;0), not terminal default.
+    // (anchored to the text, not a bare "h", which also appears in the
+    // synchronized-output BSU prefix \x1b[?2026h)
+    let before = ansi.slice(0, ansi.indexOf("hi"));
     expect(before).toContain("\x1b[48;2;255;0;0");
   });
 
@@ -393,5 +395,60 @@ describe("term", () => {
 │                  │
 └──────────────────┘`);
     });
+  });
+});
+
+describe("synchronized output", () => {
+  // DEC mode 2026: every full-screen frame is wrapped in BSU/ESU so the
+  // terminal presents it atomically and never tears mid-update.
+  let BSU = "\x1b[?2026h";
+  let ESU = "\x1b[?2026l";
+
+  it("wraps the full-screen (cups) frame in BSU/ESU", async () => {
+    let term = await createTerm({ width: 20, height: 5 });
+    let out = decode(
+      term.render([
+        open("root", {
+          layout: { width: grow(), height: grow() },
+          bg: rgba(10, 20, 30),
+        }),
+        close(),
+      ]).output,
+    );
+    expect(out.startsWith(BSU)).toBe(true);
+    expect(out.endsWith(ESU)).toBe(true);
+    // exactly one wrap per frame
+    expect(out.split(BSU).length).toBe(2);
+    expect(out.split(ESU).length).toBe(2);
+  });
+
+  it("does not wrap inline (line mode) output", async () => {
+    let term = await createTerm({ width: 20, height: 5 });
+    let out = decode(
+      term.render([
+        open("root", {
+          layout: { width: grow(), height: grow() },
+          bg: rgba(10, 20, 30),
+        }),
+        close(),
+      ], { mode: "line" }).output,
+    );
+    expect(out.includes("\x1b[?2026")).toBe(false);
+  });
+
+  it("omits the wrap when sync is disabled", async () => {
+    let term = await createTerm({ width: 20, height: 5, sync: false });
+    let out = decode(
+      term.render([
+        open("root", {
+          layout: { width: grow(), height: grow() },
+          bg: rgba(10, 20, 30),
+        }),
+        close(),
+      ]).output,
+    );
+    expect(out.includes("\x1b[?2026")).toBe(false);
+    // the actual frame content (bg SGR) is still emitted
+    expect(out.includes("\x1b[48;2;10;20;30")).toBe(true);
   });
 });
