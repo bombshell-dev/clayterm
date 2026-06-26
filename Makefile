@@ -1,11 +1,13 @@
 CC = clang
 TARGET = clayterm.wasm
 SRC = src/module.c
+CLAY_PATCH = patches/clay-disable-debug-tools.patch
 
 CFLAGS = --target=wasm32 -nostdlib -O2 \
          -ffunction-sections -fdata-sections \
          -mbulk-memory \
          -DCLAY_IMPLEMENTATION -DCLAY_WASM \
+         -DCLAY_DISABLE_DEBUG_TOOLS \
          -Isrc -I.
 
 EXPORTS = \
@@ -47,7 +49,13 @@ all: $(TARGET) wasm.ts
 
 DEPS = $(wildcard src/*.c src/*.h)
 
-$(TARGET): $(DEPS)
+# Gate out Clay's unused debug-tools UI (upstream-compatible #ifndef guards),
+# opted in via -DCLAY_DISABLE_DEBUG_TOOLS. Idempotent (skips if the guard is
+# already present) and verified (fails the build if it didn't apply).
+# Drop once Clay ships the flag upstream.
+$(TARGET): $(DEPS) $(CLAY_PATCH)
+	@grep -q CLAY_DISABLE_DEBUG_TOOLS clay/clay.h || git -C clay apply ../$(CLAY_PATCH)
+	@grep -q CLAY_DISABLE_DEBUG_TOOLS clay/clay.h || { echo "ERROR: failed to apply $(CLAY_PATCH) to clay/clay.h" >&2; exit 1; }
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(SRC)
 
 wasm.ts: $(TARGET)
@@ -55,5 +63,6 @@ wasm.ts: $(TARGET)
 
 clean:
 	rm -f $(TARGET) wasm.ts
+	-git -C clay checkout -- clay.h
 
 .PHONY: all clean

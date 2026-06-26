@@ -1,0 +1,34 @@
+diff --git a/clay.h b/clay.h
+index 80d8393..8bf723b 100644
+--- a/clay.h
++++ b/clay.h
+@@ -3145,6 +3145,7 @@ CLAY_DLL_EXPORT Clay_ElementIdArray Clay_GetPointerOverIds(void) {
+     return Clay_GetCurrentContext()->pointerOverIds;
+ }
+ 
++#ifndef CLAY_DISABLE_DEBUG_TOOLS
+ #pragma region DebugTools
+ Clay_Color CLAY__DEBUGVIEW_COLOR_1 = {58, 56, 52, 255};
+ Clay_Color CLAY__DEBUGVIEW_COLOR_2 = {62, 60, 58, 255};
+@@ -3842,6 +3843,7 @@ void Clay__RenderDebugView(void) {
+     }
+ }
+ #pragma endregion
++#endif // CLAY_DISABLE_DEBUG_TOOLS
+ 
+ uint32_t Clay__debugViewWidth = 400;
+ Clay_Color Clay__debugViewHighlightColor = { 168, 66, 28, 100 };
+@@ -4237,11 +4239,13 @@ Clay_RenderCommandArray Clay_EndLayout(void) {
+     Clay_Context* context = Clay_GetCurrentContext();
+     Clay__CloseElement();
+     bool elementsExceededBeforeDebugView = context->booleanWarnings.maxElementsExceeded;
++#ifndef CLAY_DISABLE_DEBUG_TOOLS
+     if (context->debugModeEnabled && !elementsExceededBeforeDebugView) {
+         context->warningsEnabled = false;
+         Clay__RenderDebugView();
+         context->warningsEnabled = true;
+     }
++#endif // CLAY_DISABLE_DEBUG_TOOLS
+     if (context->booleanWarnings.maxElementsExceeded) {
+         Clay_String message;
+         if (!elementsExceededBeforeDebugView) {
