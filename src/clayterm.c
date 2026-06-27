@@ -167,6 +167,30 @@ static void emit_cursor(struct Clayterm *ct, int x, int y, int row) {
   buf_put(&ct->out, "H", 1);
 }
 
+/* decimal digits in n (n >= 0) */
+static int num_digits(int n) {
+  int d = 1;
+  while (n >= 10) {
+    n /= 10;
+    d++;
+  }
+  return d;
+}
+
+/* glyph actually written for a cell: non-printable -> U+FFFD (see emit_ch) */
+static uint32_t glyph_cp(uint32_t ch) { return iswprint(ch) ? ch : 0xfffd; }
+
+/* UTF-8 byte length of a codepoint, matching buf_char's encoding */
+static int cp_utf8_len(uint32_t ch) {
+  if (ch < 0x80)
+    return 1;
+  if (ch < 0x800)
+    return 2;
+  if (ch < 0x10000)
+    return 3;
+  return 4;
+}
+
 static void emit_ch(struct Clayterm *ct, int x, int y, int row, uint32_t ch) {
   if (ct->lastx != x - 1 || ct->lasty != y) {
     emit_cursor(ct, x, y, row);
@@ -174,9 +198,7 @@ static void emit_ch(struct Clayterm *ct, int x, int y, int row, uint32_t ch) {
   ct->lastx = x;
   ct->lasty = y;
 
-  if (!iswprint(ch))
-    ch = 0xfffd;
-  buf_char(&ct->out, ch);
+  buf_char(&ct->out, glyph_cp(ch));
 }
 
 /**
@@ -198,29 +220,73 @@ static void present_cups(struct Clayterm *ct, int row) {
       if (w < 1)
         w = 1;
 
-      if (cell_cmp(back, front)) {
-        /* copy to front */
-        *front = *back;
-
-        emit_attr(ct, back->fg, back->bg);
-
-        if (w > 1 && x >= ct->w - (w - 1)) {
-          /* wide char doesn't fit, send spaces */
-          for (int i = x; i < ct->w; i++)
-            emit_ch(ct, i, y, row, ' ');
-        } else {
-          emit_ch(ct, x, y, row, back->ch);
-          /* mark trailing cells of wide char as invalid in front
-           * so they'll diff when overwritten by narrow chars */
-          for (int i = 1; i < w; i++) {
-            Cell *fw = cell_at(ct, ct->front, x + i, y);
-            fw->ch = 0xffffffff;
-            fw->fg = 0xffffffff;
-            fw->bg = 0xffffffff;
-          }
-        }
+      if (!cell_cmp(back, front)) {
+        x += w;
+        continue;
       }
-      x += w;
+
+      emit_attr(ct, back->fg, back->bg);
+
+      if (w > 1 && x >= ct->w - (w - 1)) {
+        /* wide char doesn't fit, send spaces */
+        *front = *back;
+        for (int i = x; i < ct->w; i++)
+          emit_ch(ct, i, y, row, ' ');
+        x += w;
+        continue;
+      }
+
+      if (w > 1) {
+        *front = *back;
+        emit_ch(ct, x, y, row, back->ch);
+        /* mark trailing cells of wide char as invalid in front
+         * so they'll diff when overwritten by narrow chars */
+        for (int i = 1; i < w; i++) {
+          Cell *fw = cell_at(ct, ct->front, x + i, y);
+          fw->ch = 0xffffffff;
+          fw->fg = 0xffffffff;
+          fw->bg = 0xffffffff;
+        }
+        x += w;
+        continue;
+      }
+
+      /* width-1 cell: extend a run of identical changed cells so an
+       * identical horizontal span collapses to one glyph + REP (CSI b). */
+      int run = 1;
+      for (int nx = x + 1; nx < ct->w; nx++) {
+        Cell *nb = cell_at(ct, ct->back, nx, y);
+        Cell *nf = cell_at(ct, ct->front, nx, y);
+        int nw = wcwidth(nb->ch);
+        if (nw > 1)
+          break;
+        if (!cell_cmp(nb, nf))
+          break;
+        if (cell_cmp(nb, back))
+          break;
+        run++;
+      }
+
+      /* copy the whole run to the front buffer */
+      for (int i = 0; i < run; i++)
+        *cell_at(ct, ct->front, x + i, y) = *back;
+
+      int repeats = run - 1;
+      int cb = cp_utf8_len(glyph_cp(back->ch));
+      /* inline = run*cb bytes; REP = cb + len("\x1b[") + digits + len("b").
+       * Only collapse when REP is strictly smaller. */
+      if (repeats >= 1 && run * cb > cb + 3 + num_digits(repeats)) {
+        emit_ch(ct, x, y, row, back->ch);
+        buf_str(&ct->out, "\x1b[");
+        buf_num(&ct->out, repeats);
+        buf_put(&ct->out, "b", 1);
+        ct->lastx = x + run - 1;
+        ct->lasty = y;
+      } else {
+        for (int i = 0; i < run; i++)
+          emit_ch(ct, x + i, y, row, back->ch);
+      }
+      x += run;
     }
   }
 }
