@@ -56,6 +56,7 @@ You need:
 - `git`
 - `make`
 - `clang` with wasm32-capable support
+- `lld` (provides `wasm-ld`)
 - `deno`
 
 Equivalent packages are fine if your package manager uses different names.
@@ -71,10 +72,10 @@ including `git` and `make`.
 xcode-select --install
 ```
 
-Then install LLVM and Deno with Homebrew:
+Then install LLVM, LLD, and Deno with Homebrew:
 
 ```sh
-brew install llvm deno
+brew install llvm lld deno
 ```
 
 Use Homebrew LLVM before Apple's system `clang` when building `@bomb.sh/tty`:
@@ -161,11 +162,11 @@ clang --version
 deno --version
 ```
 
-For a quick wasm-target smoke test, make sure `clang` can compile for `wasm32`:
+For a quick wasm-target smoke test, make sure `clang` can compile and link for `wasm32`:
 
 ```sh
-clang --target=wasm32 -c -x c /dev/null -o /tmp/clayterm-wasm-test.o
-rm -f /tmp/clayterm-wasm-test.o
+clang --target=wasm32 -nostdlib -Wl,--no-entry -x c /dev/null -o /tmp/clayterm-wasm-test.wasm
+rm -f /tmp/clayterm-wasm-test.wasm
 ```
 
 On macOS, if `which clang` still points to `/usr/bin/clang` and the wasm test
@@ -253,12 +254,13 @@ Recovery:
 
 - make sure you are using an LLVM/Clang build with wasm support
 - on macOS, prefer the Homebrew `llvm` toolchain over `/usr/bin/clang`
+- on macOS, install `lld`; it provides `wasm-ld`
 - on Linux/WSL2, make sure both `clang` and `lld` are installed
 - rerun the wasm smoke test:
 
 ```sh
-clang --target=wasm32 -c -x c /dev/null -o /tmp/clayterm-wasm-test.o
-rm -f /tmp/clayterm-wasm-test.o
+clang --target=wasm32 -nostdlib -Wl,--no-entry -x c /dev/null -o /tmp/clayterm-wasm-test.wasm
+rm -f /tmp/clayterm-wasm-test.wasm
 ```
 
 If the smoke test fails, fix the toolchain first and only then rerun `make`.
