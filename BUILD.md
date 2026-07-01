@@ -162,7 +162,8 @@ clang --version
 deno --version
 ```
 
-For a quick wasm-target smoke test, make sure `clang` can compile and link for `wasm32`:
+For a quick wasm-target smoke test, make sure `clang` can compile and link for
+`wasm32`:
 
 ```sh
 clang --target=wasm32 -nostdlib -Wl,--no-entry -x c /dev/null -o /tmp/clayterm-wasm-test.wasm
