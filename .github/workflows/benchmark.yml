@@ -36,7 +36,7 @@ jobs:
         run: make
 
       - name: Cache dependencies
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: deno-cache
         with:
           path: node_modules
@@ -81,7 +81,7 @@ jobs:
           name: bench-build
 
       - name: Restore dependencies
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: deno-cache
         with:
           path: node_modules
@@ -92,7 +92,7 @@ jobs:
         run: deno install
 
       - name: Run walltime benchmarks
-        uses: CodSpeedHQ/action@63f3e98b61959fe67f146a3ff022e4136fe9bb9c # v4.17.6
+        uses: CodSpeedHQ/action@a4a36bb07c0638b0b4ca52bf1f3dad1b4289e52f # v4.18.1
         with:
           mode: walltime
           run: |
